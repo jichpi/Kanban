@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanban Pro (Supabase)</title>
+<style>
+  :root{ --bg:#0f1115; --panel:#171a22; --muted:#a8b0c3; --text:#e7ecf3; --accent:#5ea1ff; --accent-2:#8b5cf6; --danger:#ff6b6b; --ok:#22c55e; --warn:#f59e0b; --shadow: 0 10px 30px rgba(0,0,0,.35); --radius:14px; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; background:linear-gradient(180deg,#0b0d12, #121621 30%, #0f1115); color:var(--text); font:500 15px/1.35 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; letter-spacing:.2px; }
+  header{ position:sticky; top:0; z-index:8; display:flex; gap:10px; align-items:center; justify-content:space-between; padding:14px 16px; backdrop-filter:saturate(1.2) blur(8px); background:rgba(18,22,33,.65); border-bottom:1px solid #222836; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:800; }
+  .logo{ width:28px; height:28px; display:grid; place-content:center; border-radius:8px; background: radial-gradient(120% 120% at 30% 20%, var(--accent), var(--accent-2)); box-shadow: 0 6px 20px rgba(94,161,255,.35); color:white; font-size:18px; font-weight:900; }
+  .controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+  button,.btn{ border:0; padding:10px 14px; border-radius:10px; font-weight:700; background:#1f2432; color:var(--text); cursor:pointer; box-shadow: var(--shadow); transition:.2s transform, .2s background, .2s opacity; }
+  button:hover{ transform:translateY(-1px); background:#242a3a }
+  .btn-primary{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); }
+  .btn-primary:hover{ filter:brightness(1.05) }
+  .btn-danger{ background:#3a1e22 }
+  .btn-danger:hover{ background:#432427 }
+  input, select, textarea{ background:#141825; border:1px solid #273046; color:var(--text); padding:10px 12px; border-radius:10px; width:100%; outline:none; }
+  input::placeholder, textarea::placeholder{ color:#6f7892 }
+  textarea{ min-height:88px; resize:vertical }
+  .layout{ display:grid; gap:14px; padding:16px; align-items:start; grid-template-columns: repeat(3, minmax(0,1fr)); }
+  @media (max-width: 1000px){ .layout{ grid-template-columns: 1fr; } }
+  .column{ background:linear-gradient(180deg,#171b27,#141826); border:1px solid #232b3f; border-radius: var(--radius); box-shadow: var(--shadow); min-height: 220px; overflow:hidden; }
+  .col-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid #232b3f; background:linear-gradient(180deg,#1b2130,#171b27); }
+  .col-head h2{ margin:0; font-size:15px; letter-spacing:.6px; text-transform:uppercase; color:#c9d2e6 }
+  .count{ opacity:.7; font-weight:700 }
+  .dropzone{ padding:12px; display:grid; gap:10px; min-height:160px }
+  .card{ background:#0f1320; border:1px solid #273046; border-radius:12px; padding:10px 12px; display:grid; gap:8px; cursor:grab; }
+  .card.dragging{ opacity:.6 }
+  .title-row{ display:flex; align-items:center; gap:8px; justify-content:space-between }
+  .badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 8px; border-radius:999px; background:#1b2233; border:1px solid #273046; color:#cbd5e1; }
+  .badge .dot{ width:10px; height:10px; border-radius:50% }
+  .meta{ display:flex; align-items:center; gap:8px; color:#9aa3b8; font-size:12px; flex-wrap:wrap }
+  .meta .due{ padding:2px 8px; border-radius:999px; border:1px solid #273046; background:#151a28 }
+  .meta .prio{ padding:2px 8px; border-radius:999px; border:1px solid #273046; background:#1f2432 }
+  .meta .tags{ display:flex; gap:6px; flex-wrap:wrap }
+  .tag{ font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid #273046; background:#101522 }
+  .actions{ display:flex; gap:6px; justify-content:flex-end }
+  .ghost{ border:2px dashed #2f3a56; border-radius:12px; padding:18px; opacity:.7 }
+  .footer{ padding:14px; color:#99a3bd; text-align:center }
+  .footer a{ color:#9ec1ff; text-decoration:none }
+  .sr{ position:absolute; left:-9999px }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .search{ width: clamp(180px, 30vw, 340px) }
+  .pill{ font-size:12px; border:1px dashed #2d3750; padding:6px 10px; border-radius:999px; }
+  .topline{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 16px; font-size:13px; color:#b8c0d9; border-bottom:1px solid #222836; background:rgba(18,22,33,.5)}
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .panel{ background:linear-gradient(180deg,#171b27,#141826); border:1px solid #232b3f; border-radius:12px; padding:10px; }
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; padding:10px 16px; align-items:center }
+  .view-toggle{ margin-left:auto }
+  .calendar{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; padding:16px; }
+  .day{ background:#0f1320; border:1px solid #273046; border-radius:8px; min-height:120px; padding:8px; }
+  .day h4{ margin:0 0 8px 0; color:#cbd5e1; font-size:12px }
+  .day .mini{ display:grid; gap:6px }
+  .mini .item{ font-size:12px; background:#141b2c; border:1px solid #273046; border-radius:6px; padding:4px 6px; }
+  .ro{ opacity:.6; pointer-events:none }
+  .auth{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">K</div>
+    <div>
+      <div style="font-weight:800; font-size:15px">Kanban Pro</div>
+      <div style="font-size:12px; color:var(--muted)">Supabase – temps réel – rôles – calendrier</div>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="toolbar">
+      <input id="search" class="search" type="search" placeholder="Rechercher…">
+      <button id="btn-add" class="btn-primary">+ Nouvelle tâche</button>
+      <button id="btn-export-csv">Export CSV</button>
+      <button id="btn-share">Lien du board</button>
+      <button id="btn-reset" class="btn-danger" title="Réinitialise le board local (pas Supabase)">Réinit. (local)</button>
+    </div>
+  </div>
+</header>
+
+<div class="topline">
+  <div>Board : <span id="board-id" class="mono"></span></div>
+  <div>| Projet : <input id="board-title" placeholder="Nom du projet" style="width:220px"></div>
+  <div>| Mode : 
+    <select id="board-mode">
+      <option value="public_rw">Public (lecture/écriture)</option>
+      <option value="public_ro">Public (lecture seule)</option>
+      <option value="auth">Auth requise</option>
+      <option value="token">Token d’édition</option>
+    </select>
+  </div>
+  <div id="token-wrap" style="display:none">| Token édition : <input id="edit-token" placeholder="ex: secret-123" style="width:180px"></div>
+  <div class="view-toggle">
+    <label><input type="radio" name="view" value="board" checked> Tableau</label>
+    <label><input type="radio" name="view" value="calendar"> Calendrier</label>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="panel" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+    <select id="filter-status">
+      <option value="">Statut : tous</option>
+      <option value="todo">À faire</option>
+      <option value="doing">En cours</option>
+      <option value="done">Terminé</option>
+    </select>
+    <select id="filter-priority">
+      <option value="">Priorité : toutes</option>
+      <option value="low">Basse</option>
+      <option value="medium">Moyenne</option>
+      <option value="high">Haute</option>
+      <option value="urgent">Urgent</option>
+    </select>
+    <input id="filter-tags" placeholder="Tags (séparés par virgules)">
+    <button id="btn-clear-filters">Effacer filtres</button>
+  </div>
+  <div class="auth">
+    <input id="auth-email" placeholder="email@exemple.com">
+    <button id="auth-login">Se connecter (magic link)</button>
+    <button id="auth-logout">Se déconnecter</button>
+    <span id="auth-state" class="pill">Non connecté</span>
+  </div>
+</div>
+
+<main id="board-view" class="layout" aria-live="polite">
+  <section class="column" data-col="todo" aria-label="À faire">
+    <div class="col-head">
+      <h2>À faire</h2><span class="count" id="count-todo">0</span>
+    </div>
+    <div class="dropzone" data-dropzone="todo"></div>
+  </section>
+  <section class="column" data-col="doing" aria-label="En cours">
+    <div class="col-head">
+      <h2>En cours</h2><span class="count" id="count-doing">0</span>
+    </div>
+    <div class="dropzone" data-dropzone="doing"></div>
+  </section>
+  <section class="column" data-col="done" aria-label="Terminé">
+    <div class="col-head">
+      <h2>Terminé</h2><span class="count" id="count-done">0</span>
+    </div>
+    <div class="dropzone" data-dropzone="done"></div>
+  </section>
+</main>
+
+<section id="calendar-view" class="panel" style="display:none">
+  <div class="calendar" id="calendar-grid"></div>
+</section>
+
+<p class="footer">
+  Remplis l’URL et la clé anonyme Supabase ci-dessous. Choisis un mode : <b>public_rw</b>, <b>public_ro</b>, <b>auth</b>, ou <b>token</b> (ajoute aussi un token).
+</p>
+
+<!-- Task Modal -->
+<dialog id="task-modal" aria-labelledby="modal-title">
+  <form method="dialog" id="task-form">
+    <div class="modal-head">
+      <div id="modal-title" style="font-weight:800">Nouvelle tâche</div>
+      <button type="button" id="modal-close" aria-label="Fermer">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="task-id">
+      <label> Titre
+        <input id="task-title" required placeholder="Ex : Préparer la réunion">
+      </label>
+      <label> Description
+        <textarea id="task-desc" placeholder="Détails, liens…"></textarea>
+      </label>
+      <div class="grid-2">
+        <label> Échéance
+          <input id="task-due" type="date">
+        </label>
+        <label> Étiquette (couleur)
+          <input id="task-color" type="color" value="#3b82f6">
+        </label>
+      </div>
+      <div class="grid-2">
+        <label> Priorité
+          <select id="task-priority">
+            <option value="low">Basse</option>
+            <option value="medium" selected>Moyenne</option>
+            <option value="high">Haute</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label> Tags (séparés par virgules)
+          <input id="task-tags" placeholder="marketing, bug, urgent">
+        </label>
+      </div>
+      <label> Pièces jointes (URLs, une par ligne)
+        <textarea id="task-attachments" placeholder="https://lien1\nhttps://lien2"></textarea>
+      </label>
+      <div>
+        <div style="font-weight:700; margin-bottom:6px">Checklist</div>
+        <div id="checklist"></div>
+        <div style="display:flex; gap:6px; margin-top:6px">
+          <input id="new-check-item" placeholder="Nouvel item…">
+          <button type="button" id="add-check-item">Ajouter</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700; margin-bottom:6px">Commentaires</div>
+        <div id="comments" class="panel" style="max-height:180px; overflow:auto"></div>
+        <div style="display:flex; gap:6px; margin-top:6px">
+          <input id="new-comment" placeholder="Votre commentaire…">
+          <button type="button" id="add-comment">Publier</button>
+        </div>
+      </div>
+      <div class="hint">Glissez les cartes entre colonnes. Les modifications sont partagées en direct (si autorisées).</div>
+    </div>
+    <div class="modal-actions">
+      <button value="cancel">Annuler</button>
+      <button class="btn-primary" id="btn-save" value="default">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Config panel -->
+<div style="padding:12px 16px; display:grid; gap:8px; border-top:1px solid #222836">
+  <div style="font-weight:800; color:#c9d2e6">Configuration Supabase (à remplir une fois)</div>
+  <label> SUPABASE_URL
+    <input id="SUPABASE_URL" placeholder="https://xxxxx.supabase.co">
+  </label>
+  <label> SUPABASE_ANON_KEY
+    <input id="SUPABASE_ANON_KEY" placeholder="eyJhbGciOi... (clé anonyme)">
+  </label>
+  <div class="hint">Les valeurs sont stockées en local (localStorage) uniquement.</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ===== Utils & State =====
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const LS = { get(k){ try{return JSON.parse(localStorage.getItem(k))}catch{return null} }, set(k,v){ localStorage.setItem(k, JSON.stringify(v)) } };
+const cfgKey = 'kanban_pro_cfg_v1';
+const boardKey = 'kanban_pro_board_v1';
+const canWrite = () => app.roleWrite && !app.readOnly; // simple gating
+const app = { supa:null, channel:null, boardId:null, readOnly:false, roleWrite:true, user:null };
+const state = { tasks:{todo:[], doing:[], done:[]}, title:'Mon projet', mode:'public_rw', edit_token:null };
+const filters = { status:'', priority:'', tags:[], search:'' };
+
+// ===== Config restore =====
+(function restoreCfg(){
+  const cfg = LS.get(cfgKey)||{};
+  if(cfg.url) $('#SUPABASE_URL').value = cfg.url;
+  if(cfg.key) $('#SUPABASE_ANON_KEY').value = cfg.key;
+})();
+$('#SUPABASE_URL').addEventListener('change', saveCfg);
+$('#SUPABASE_ANON_KEY').addEventListener('change', saveCfg);
+function saveCfg(){ LS.set(cfgKey, {url: $('#SUPABASE_URL').value.trim(), key: $('#SUPABASE_ANON_KEY').value.trim()}); connectSupabase(); }
+
+// ===== Supabase init =====
+async function connectSupabase(){
+  const url = $('#SUPABASE_URL').value.trim();
+  const key = $('#SUPABASE_ANON_KEY').value.trim();
+  if(!url || !key) return;
+  app.supa = supabase.createClient(url, key);
+  app.user = (await app.supa.auth.getUser()).data.user || null;
+  updateAuthBadge();
+  app.supa.auth.onAuthStateChange((_event, session) => {
+    app.user = session?.user || null;
+    updateAuthBadge();
+    applyRoleMode();
+  });
+  if(app.boardId){ await subscribeRealtime(app.boardId); }
+}
+
+// ===== Auth (magic link) =====
+$('#auth-login').addEventListener('click', async () => {
+  const email = $('#auth-email').value.trim();
+  if(!email) return alert('Entrer un email.');
+  const { error } = await app.supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.href }});
+  if(error) return alert(error.message);
+  alert('Email envoyé. Cliquez le lien magique et revenez.');
+});
+$('#auth-logout').addEventListener('click', async () => {
+  await app.supa.auth.signOut();
+  alert('Déconnecté.');
+});
+function updateAuthBadge(){
+  $('#auth-state').textContent = app.user ? ('Connecté: ' + (app.user.email||app.user.id)) : 'Non connecté';
+}
+
+// ===== Board ID, mode & token =====
+async function ensureBoard(){
+  const urlParams = new URLSearchParams(location.search);
+  let b = urlParams.get('board') || LS.get(boardKey) || null;
+  if(!b){ b = crypto.randomUUID(); history.replaceState(null, '', location.pathname + '?board=' + b); }
+  LS.set(boardKey, b);
+  app.boardId = b;
+  $('#board-id').textContent = b;
+
+  const t = urlParams.get('token') || null;
+  if(t) $('#edit-token').value = t;
+
+  return b;
+}
+function toggleTokenField(){ $('#token-wrap').style.display = ($('#board-mode').value==='token') ? '' : 'none'; }
+$('#board-mode').addEventListener('change', () => { saveBoardMeta(); toggleTokenField(); applyRoleMode(); });
+$('#edit-token').addEventListener('change', () => { saveBoardMeta(); applyRoleMode(); });
+
+function applyRoleMode(){
+  const mode = $('#board-mode').value;
+  let ro = false, can = true;
+  if(mode==='public_ro'){ ro = true; }
+  if(mode==='auth'){ can = !!app.user; ro = !can; }
+  if(mode==='token'){
+    const need = ($('#edit-token').value||'').trim();
+    const got = new URLSearchParams(location.search).get('token') || '';
+    can = !!need && need === got;
+    ro = !can;
+  }
+  app.readOnly = ro; app.roleWrite = can;
+  document.body.classList.toggle('ro', ro);
+  $('#btn-add').disabled = ro;
+  $$('#board-view .actions button, #task-form button, #add-check-item, #add-comment').forEach(b => b.disabled = ro);
+}
+
+// ===== Realtime =====
+async function subscribeRealtime(boardId){
+  if(!app.supa) return;
+  if(app.channel) await app.channel.unsubscribe();
+  app.channel = app.supa.channel('rt:tasks:'+boardId);
+  app.channel.on('postgres_changes', {event:'*', schema:'public', table:'tasks', filter:'board_id=eq.'+boardId}, (payload) => { syncFromPayload(payload); render(); });
+  app.channel.on('postgres_changes', {event:'*', schema:'public', table:'comments', filter:'board_id=eq.'+boardId}, (payload) => { /* comments refetch on open */ });
+  await app.channel.subscribe();
+}
+
+// ===== Data loading =====
+async function loadAll(){
+  if(!app.supa || !app.boardId) return;
+  const { data: boardRows } = await app.supa.from('boards').select('*').eq('board_id', app.boardId).limit(1);
+  if(!boardRows || boardRows.length===0){
+    await app.supa.from('boards').insert({ board_id: app.boardId, title: state.title, mode: state.mode, edit_token: state.edit_token });
+  }else{
+    const b = boardRows[0];
+    state.title = b.title || state.title;
+    state.mode = b.mode || state.mode;
+    state.edit_token = b.edit_token || null;
+    $('#board-title').value = state.title;
+    $('#board-mode').value = state.mode;
+    if(state.mode==='token' && state.edit_token) $('#edit-token').value = state.edit_token;
+  }
+  toggleTokenField();
+  applyRoleMode();
+
+  const { data: rows, error } = await app.supa.from('tasks').select('*').eq('board_id', app.boardId);
+  if(error){ alert('Erreur de chargement : ' + error.message); return; }
+  state.tasks = splitByStatus(rows||[]);
+  render();
+}
+$('#board-title').addEventListener('change', saveBoardMeta);
+async function saveBoardMeta(){
+  if(!app.supa || !app.boardId) return;
+  state.title = $('#board-title').value.trim() || 'Mon projet';
+  state.mode = $('#board-mode').value;
+  state.edit_token = ($('#edit-token').value||'').trim() || null;
+  await app.supa.from('boards').upsert({ board_id: app.boardId, title: state.title, mode: state.mode, edit_token: state.edit_token });
+}
+
+// ===== Helpers =====
+function splitByStatus(rows){
+  const by = { todo:[], doing:[], done:[] };
+  rows.forEach(r => (by[r.status]||by.todo).push(r));
+  for(const k of Object.keys(by)){
+    by[k].sort((a,b) => (a.position??0)-(b.position??0) || new Date(a.created_at)-new Date(b.created_at));
+  }
+  return by;
+}
+function escapeHtml(str=''){ return (str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function formatDue(due){ if(!due) return 'Sans échéance'; const d = new Date(due + 'T00:00:00'); return 'Échéance : ' + d.toLocaleDateString(undefined, {weekday:'short', day:'2-digit', month:'short'}); }
+function prioLabel(p){ return {low:'Basse', medium:'Moyenne', high:'Haute', urgent:'Urgent'}[p] || 'Moyenne'; }
+
+// ===== Rendering (Board + Calendar) =====
+function render(){
+  for(const col of ['todo','doing','done']){
+    const zone = document.querySelector(`[data-dropzone="${col}"]`);
+    zone.innerHTML = '';
+    applyAllFilters(state.tasks[col]).forEach(task => zone.appendChild(card(task)));
+    $(`#count-${col}`).textContent = state.tasks[col].length;
+  }
+  renderCalendar();
+  applyRoleMode();
+}
+
+function card(task){
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.draggable = !app.readOnly;
+  el.dataset.id = task.id;
+
+  const tags = (task.tags||[]).map(t=> `<span class="tag">${escapeHtml(t)}</span>`).join(' ');
+  el.innerHTML = `
+    <div class="title-row">
+      <div style="font-weight:700">${escapeHtml(task.title)}</div>
+      ${task.color ? `<span class="badge"><span class="dot" style="background:${task.color}"></span>Label</span>`:''}
+    </div>
+    ${task.desc ? `<div style="color:#bac3d8">${escapeHtml(task.desc)}</div>`:''}
+    <div class="meta">
+      <span class="due" data-due="${task.due||''}">${formatDue(task.due)}</span>
+      <span class="prio">Priorité: ${prioLabel(task.priority)}</span>
+      <span class="tags">${tags}</span>
+    </div>
+    <div class="actions">
+      <button class="btn" data-act="open">Ouvrir</button>
+      ${canWrite()?'<button class="btn" data-act="del">Supprimer</button>':''}
+    </div>
+  `;
+
+  el.addEventListener('dragstart', e => {
+    if(app.readOnly){ e.preventDefault(); return; }
+    el.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+  el.addEventListener('click', async (e) => {
+    const act = e.target?.dataset?.act;
+    if(!act) return;
+    if(act === 'open'){ openModal(task); await loadComments(task.id); }
+    if(act === 'del'){ await deleteTask(task.id); }
+  });
+
+  refreshDue(el);
+  return el;
+}
+
+function refreshDue(cardEl){
+  const dueEl = cardEl.querySelector('.due');
+  const dateStr = dueEl?.dataset?.due;
+  if(!dateStr) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(dateStr); dd.setHours(0,0,0,0);
+  if(dd < today) { dueEl.style.background = '#2a1720'; dueEl.style.borderColor = '#4d2330'; dueEl.style.color = '#ffb4c2'; }
+  if(dd.getTime() === today.getTime()){ dueEl.style.background = '#2a2417'; dueEl.style.borderColor = '#4d3a23'; dueEl.style.color = '#ffd79a'; }
+}
+
+function renderCalendar(){
+  const grid = $('#calendar-grid');
+  grid.innerHTML = '';
+  const start = new Date(); start.setHours(0,0,0,0);
+  const firstDay = new Date(start); firstDay.setDate(1);
+  const monthStart = new Date(firstDay);
+  const startIdx = monthStart.getDay() || 7;
+  const calStart = new Date(monthStart); calStart.setDate(calStart.getDate() - (startIdx-1));
+  for(let i=0;i<35;i++){
+    const d = new Date(calStart); d.setDate(calStart.getDate()+i);
+    const key = d.toISOString().slice(0,10);
+    const dayEl = document.createElement('div');
+    dayEl.className = 'day';
+    const heading = document.createElement('h4');
+    heading.textContent = d.toLocaleDateString(undefined,{weekday:'short', day:'2-digit', month:'short'});
+    dayEl.appendChild(heading);
+    const list = document.createElement('div');
+    list.className = 'mini';
+    const tasks = allTasks().filter(t => t.due===key);
+    applyAllFilters(tasks).forEach(t => {
+      const it = document.createElement('div');
+      it.className='item';
+      it.textContent = `[${prioLabel(t.priority)}] ${t.title}`;
+      list.appendChild(it);
+    });
+    dayEl.appendChild(list);
+    grid.appendChild(dayEl);
+  }
+}
+
+function allTasks(){ return [...state.tasks.todo, ...state.tasks.doing, ...state.tasks.done]; }
+
+// ===== Filters =====
+$('#search').addEventListener('input', e => { filters.search = e.target.value.trim().toLowerCase(); render(); });
+$('#filter-status').addEventListener('change', e => { filters.status = e.target.value; render(); });
+$('#filter-priority').addEventListener('change', e => { filters.priority = e.target.value; render(); });
+$('#filter-tags').addEventListener('input', e => { filters.tags = e.target.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); render(); });
+$('#btn-clear-filters').addEventListener('click', () => {
+  filters.status=''; filters.priority=''; filters.tags=[]; filters.search='';
+  $('#search').value=''; $('#filter-status').value=''; $('#filter-priority').value=''; $('#filter-tags').value='';
+  render();
+});
+function applyAllFilters(arr){
+  return arr.filter(t => {
+    if(filters.status && t.status!==filters.status) return false;
+    if(filters.priority && t.priority!==filters.priority) return false;
+    if(filters.tags.length){
+      const tags = (t.tags||[]).map(x=>x.toLowerCase());
+      if(!filters.tags.every(tag=>tags.includes(tag))) return false;
+    }
+    const hay = (t.title + ' ' + (t.desc||'') + ' ' + (t.tags||[]).join(' ')).toLowerCase();
+    if(filters.search && !hay.includes(filters.search)) return false;
+    return true;
+  });
+}
+
+// ===== View toggle =====
+$$('input[name="view"]').forEach(r => r.addEventListener('change', () => {
+  const v = document.querySelector('input[name="view"]:checked').value;
+  $('#board-view').style.display = (v==='board')?'grid':'none';
+  $('#calendar-view').style.display = (v==='calendar')?'block':'none';
+}));
+
+// ===== DnD =====
+$$('.dropzone').forEach(zone => {
+  zone.addEventListener('dragover', (e) => { if(app.readOnly) return; e.preventDefault(); });
+  zone.addEventListener('drop', async (e) => {
+    if(app.readOnly) return;
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    const toCol = zone.dataset.dropzone;
+    if(!id || !toCol) return;
+    const nextPos = (state.tasks[toCol].length ? Math.max(...state.tasks[toCol].map(t=>t.position||0))+1 : 1);
+    await updateTask(id, { status: toCol, position: nextPos });
+  });
+});
+
+// ===== CRUD (Supabase) =====
+async function addTaskRemote(task){
+  if(!app.supa || !app.boardId) return;
+  if(!canWrite()) return alert('Lecture seule.');
+  const payload = {
+    id: crypto.randomUUID(),
+    board_id: app.boardId,
+    title: task.title,
+    desc: task.desc || null,
+    status: task.status || 'todo',
+    due: task.due || null,
+    color: task.color || null,
+    position: task.position || ((state.tasks[task.status||'todo']||[]).length+1),
+    priority: task.priority || 'medium',
+    tags: task.tags || [],
+    attachments: task.attachments || [],
+    checklist: task.checklist || []
+  };
+  const { error } = await app.supa.from('tasks').insert(payload);
+  if(error){ alert('Erreur ajout : ' + error.message); }
+}
+async function updateTask(id, patch){
+  if(!app.supa) return;
+  if(!canWrite()) return alert('Lecture seule.');
+  patch.updated_at = new Date().toISOString();
+  const { error } = await app.supa.from('tasks').update(patch).eq('id', id);
+  if(error){ alert('Erreur maj : ' + error.message); }
+}
+async function deleteTask(id){
+  if(!app.supa) return;
+  if(!canWrite()) return alert('Lecture seule.');
+  const { error } = await app.supa.from('tasks').delete().eq('id', id);
+  if(error){ alert('Erreur suppression : ' + error.message); }
+}
+function syncFromPayload(payload){
+  const row = payload.new || payload.old;
+  if(payload.eventType === 'INSERT' || payload.eventType==='UPDATE'){
+    upsertLocal(row);
+  } else if(payload.eventType === 'DELETE'){
+    removeLocal(row.id);
+  }
+}
+function upsertLocal(t){
+  for(const col of ['todo','doing','done']){
+    state.tasks[col] = state.tasks[col].filter(x => x.id !== t.id);
+  }
+  const k = t.status || 'todo';
+  state.tasks[k].push(t);
+  state.tasks[k].sort((a,b) => (a.position??0)-(b.position??0));
+}
+function removeLocal(id){
+  for(const col of ['todo','doing','done']){
+    state.tasks[col] = state.tasks[col].filter(x => x.id !== id);
+  }
+}
+
+// ===== Export CSV =====
+$('#btn-export-csv').addEventListener('click', async () => {
+  const rows = allTasks();
+  const headers = ['id','title','desc','status','due','priority','tags','attachments','checklist','created_at','updated_at'];
+  const lines = [headers.join(';')];
+  for(const r of rows){
+    const vals = [
+      r.id, r.title, r.desc||'', r.status, r.due||'',
+      r.priority||'medium',
+      (r.tags||[]).join(','),
+      (r.attachments||[]).join(','),
+      (r.checklist||[]).map(i=>(i.done?'[x] ':'[ ] ')+i.text).join(' | '),
+      r.created_at||'', r.updated_at||''
+    ].map(v => `"${(String(v)).replace(/"/g,'""')}"`);
+    lines.push(vals.join(';'));
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='kanban-export.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ===== Modal, Checklist, Comments =====
+const modal = $('#task-modal'); const form = $('#task-form');
+$('#btn-add').addEventListener('click', () => openModal());
+$('#modal-close').addEventListener('click', () => modal.close());
+
+function openModal(task=null){
+  $('#modal-title').textContent = task ? 'Modifier la tâche' : 'Nouvelle tâche';
+  $('#task-id').value = task?.id || '';
+  $('#task-title').value = task?.title || '';
+  $('#task-desc').value = task?.desc || '';
+  $('#task-due').value = task?.due || '';
+  $('#task-color').value = task?.color || '#3b82f6';
+  $('#task-priority').value = task?.priority || 'medium';
+  $('#task-tags').value = (task?.tags||[]).join(', ');
+  $('#task-attachments').value = (task?.attachments||[]).join('\n');
+  renderChecklist(task?.checklist||[]);
+  $('#comments').innerHTML = '';
+  if(typeof modal.showModal === 'function') modal.showModal(); else alert('Votre navigateur ne prend pas en charge <dialog>.');
+}
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if(!canWrite()){ alert('Lecture seule.'); return; }
+  const id = $('#task-id').value || null;
+  const task = {
+    id,
+    title: $('#task-title').value.trim(),
+    desc: $('#task-desc').value.trim(),
+    due: $('#task-due').value || null,
+    color: $('#task-color').value || null,
+    priority: $('#task-priority').value,
+    tags: $('#task-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+    attachments: $('#task-attachments').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    checklist: readChecklist()
+  };
+  if(!task.title) return;
+  if(id){ await updateTask(id, task); } else { await addTaskRemote(task); }
+  modal.close();
+});
+
+// Checklist UI
+$('#add-check-item').addEventListener('click', () => {
+  const txt = $('#new-check-item').value.trim(); if(!txt) return;
+  const list = readChecklist(); list.push({id:crypto.randomUUID(), text:txt, done:false});
+  renderChecklist(list); $('#new-check-item').value='';
+});
+function renderChecklist(items){
+  const area = $('#checklist'); area.innerHTML='';
+  items.forEach(it => {
+    const row = document.createElement('div'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='6px'; row.style.margin='6px 0';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=!!it.done;
+    const input = document.createElement('input'); input.value=it.text;
+    const del = document.createElement('button'); del.textContent='✕';
+    cb.addEventListener('change', () => { it.done = cb.checked; });
+    input.addEventListener('change', () => { it.text = input.value; });
+    del.addEventListener('click', () => { items.splice(items.indexOf(it),1); renderChecklist(items); });
+    row.appendChild(cb); row.appendChild(input); row.appendChild(del);
+    area.appendChild(row);
+  });
+  area.dataset.json = JSON.stringify(items);
+}
+function readChecklist(){ try{ return JSON.parse($('#checklist').dataset.json||'[]'); }catch{return [];} }
+
+// Comments
+async function loadComments(taskId){
+  if(!app.supa || !app.boardId || !taskId) return;
+  const box = $('#comments'); box.innerHTML = 'Chargement…';
+  const { data, error } = await app.supa.from('comments').select('*').eq('board_id', app.boardId).eq('task_id', taskId).order('created_at', {ascending:true});
+  if(error){ box.textContent='Erreur de chargement des commentaires'; return; }
+  box.innerHTML = '';
+  data.forEach(c => {
+    const line = document.createElement('div'); line.className='panel';
+    line.innerHTML = `<div style="font-size:12px; opacity:.8">${escapeHtml(c.author||'Anonyme')} – ${new Date(c.created_at).toLocaleString()}</div>
+    <div>${escapeHtml(c.content)}</div>`;
+    box.appendChild(line);
+  });
+}
+$('#add-comment').addEventListener('click', async () => {
+  if(!canWrite()) return alert('Lecture seule.');
+  const taskId = $('#task-id').value; if(!taskId) return;
+  const content = $('#new-comment').value.trim(); if(!content) return;
+  const author = app.user?.email || 'Anonyme';
+  const { error } = await app.supa.from('comments').insert({ id: crypto.randomUUID(), board_id: app.boardId, task_id: taskId, content, author });
+  if(error) return alert('Erreur commentaire : ' + error.message);
+  $('#new-comment').value='';
+  await loadComments(taskId);
+});
+
+// ===== Share & Reset =====
+$('#btn-share').addEventListener('click', async () => {
+  const url = new URL(location.href);
+  url.searchParams.set('board', app.boardId);
+  if($('#board-mode').value==='token' && $('#edit-token').value) url.searchParams.set('token', $('#edit-token').value);
+  await navigator.clipboard.writeText(url.toString()).catch(()=>{});
+  alert('Lien copié !');
+});
+$('#btn-reset').addEventListener('click', () => {
+  if(confirm('Réinitialiser (local). Cela ne supprime PAS les données Supabase.')){
+    localStorage.removeItem(boardKey); location.href = location.pathname;
+  }
+});
+
+// ===== Initialize =====
+(async function init(){
+  await ensureBoard();
+  await connectSupabase();
+  await subscribeRealtime(app.boardId);
+  await loadAll();
+})();
+</script>
+
+<!-- ======= SQL à exécuter dans Supabase (onglet SQL) =======
+-- 1) Tables
+create table if not exists public.boards (
+  board_id uuid primary key,
+  title text,
+  mode text default 'public_rw' check (mode in ('public_rw','public_ro','auth','token')),
+  edit_token text,
+  owner uuid,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.tasks (
+  id uuid primary key,
+  board_id uuid references public.boards(board_id) on delete cascade,
+  title text not null,
+  desc text,
+  status text not null default 'todo' check (status in ('todo','doing','done')),
+  due date,
+  color text,
+  position int default 1,
+  priority text not null default 'medium' check (priority in ('low','medium','high','urgent')),
+  tags text[] default '{}',
+  attachments text[] default '{}',
+  checklist jsonb default '[]'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.comments (
+  id uuid primary key,
+  board_id uuid references public.boards(board_id) on delete cascade,
+  task_id uuid references public.tasks(id) on delete cascade,
+  author text,
+  content text not null,
+  created_at timestamptz default now()
+);
+
+-- 2) RLS
+alter table public.boards enable row level security;
+alter table public.tasks  enable row level security;
+alter table public.comments enable row level security;
+
+create policy if not exists "boards read" on public.boards for select using (true);
+create policy if not exists "tasks read"  on public.tasks  for select using (true);
+create policy if not exists "comments read" on public.comments for select using (true);
+
+create policy if not exists "tasks write public_rw" on public.tasks
+for all using ( exists (select 1 from public.boards b where b.board_id = tasks.board_id and b.mode = 'public_rw') )
+with check ( exists (select 1 from public.boards b where b.board_id = tasks.board_id and b.mode = 'public_rw') );
+
+create policy if not exists "comments write public_rw" on public.comments
+for all using ( exists (select 1 from public.boards b where b.board_id = comments.board_id and b.mode = 'public_rw') )
+with check ( exists (select 1 from public.boards b where b.board_id = comments.board_id and b.mode = 'public_rw') );
+
+create policy if not exists "boards write public_rw" on public.boards
+for all using (mode = 'public_rw') with check (mode in ('public_rw','public_ro','auth','token'));
+
+create policy if not exists "tasks write auth" on public.tasks
+for all using ( auth.role() = 'authenticated' and exists (select 1 from public.boards b where b.board_id = tasks.board_id and b.mode = 'auth') )
+with check ( auth.role() = 'authenticated' and exists (select 1 from public.boards b where b.board_id = tasks.board_id and b.mode = 'auth') );
+
+create policy if not exists "comments write auth" on public.comments
+for all using ( auth.role() = 'authenticated' and exists (select 1 from public.boards b where b.board_id = comments.board_id and b.mode = 'auth') )
+with check ( auth.role() = 'authenticated' and exists (select 1 from public.boards b where b.board_id = comments.board_id and b.mode = 'auth') );
+
+create policy if not exists "boards write auth" on public.boards
+for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- 3) Realtime
+-- Supabase > Database > Replication : activer INSERT/UPDATE/DELETE pour public.tasks et public.comments.
+============================================================== -->
+</body>
+</html>
