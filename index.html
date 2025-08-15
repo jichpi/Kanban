@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Étiquettes Boissons — OCR / Code-barres (v3)</title>
+  <title>Étiquettes Boissons — OFF d'abord (v4)</title>
   <meta name="theme-color" content="#4b6cb7"/>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
@@ -41,6 +41,7 @@
     th{background:#f6f7ff}
     .right{justify-content:flex-end}
     @media(max-width:1000px){.grid{grid-template-columns:1fr}}
+    .toggle{display:inline-flex;align-items:center;gap:8px}
   </style>
   <!-- OCR + Barcode libs -->
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
@@ -50,19 +51,43 @@
 <div class="container">
   <header>
     <h1>Étiquettes Boissons</h1>
-    <p class="subtitle">OCR amélioré • Code-barres OpenFoodFacts • Historique & Export global (v3)</p>
+    <p class="subtitle">Priorité à OpenFoodFacts (code-barres ou recherche nom) puis vérif manuelle/OCR (v4)</p>
   </header>
 
   <div class="main">
     <div class="tabs">
-      <button class="tab active" data-tab="ocr">OCR</button>
-      <button class="tab" data-tab="barcode">Code-barres</button>
+      <button class="tab active" data-tab="barcode">OFF d'abord</button>
+      <button class="tab" data-tab="ocr">OCR</button>
       <button class="tab" data-tab="manuel">Manuel</button>
       <button class="tab" data-tab="historique">Historique</button>
     </div>
 
+    <!-- OFF Panel -->
+    <div class="panel active" id="panel-barcode">
+      <div class="grid">
+        <div class="card">
+          <h3>Scanner code-barres</h3>
+          <video id="bvideo" class="image"></video>
+          <div class="controls">
+            <button class="btn btn-p" id="start-scan">Démarrer</button>
+            <button class="btn btn-o" id="stop-scan">Arrêter</button>
+          </div>
+          <div class="small">EAN-13 / UPC-A (caméra arrière recommandée).</div>
+        </div>
+        <div class="card">
+          <h3>Recherche par code ou par nom</h3>
+          <input type="text" id="search-input" placeholder="ex: 3274080005003 ou 'Chimay Bleue'"/>
+          <div class="controls">
+            <button class="btn btn-p" id="search-btn">Chercher sur OFF</button>
+            <button class="btn btn-o" id="use-ocr-image">Lire code-barres sur l'image</button>
+          </div>
+          <div class="small">Si vous avez déjà une photo, “Lire code-barres sur l'image” tentera d’extraire l’EAN à partir de l’onglet OCR &gt; Image.</div>
+        </div>
+      </div>
+    </div>
+
     <!-- OCR Panel -->
-    <div class="panel active" id="panel-ocr">
+    <div class="panel" id="panel-ocr">
       <div class="grid">
         <div class="card">
           <h3>Image</h3>
@@ -75,7 +100,6 @@
             <button class="btn btn-o" id="crop">Zone “Ingrédients”</button>
             <button class="btn btn-o" id="reset">Réinitialiser</button>
           </div>
-          <div class="small">Astuce : recadrez la zone puis lancez l’OCR.</div>
         </div>
 
         <div class="card">
@@ -83,36 +107,12 @@
           <div class="controls">
             <label class="small"><input type="checkbox" id="bw"> Noir & blanc</label>
             <label class="small"><input type="checkbox" id="sh"> Netteté</label>
-            <label class="small"><input type="checkbox" id="deskew"> Deskew</label>
           </div>
           <div class="controls">
             <button class="btn btn-p" id="run">Lancer l’OCR</button>
           </div>
           <canvas id="canvas" style="display:none"></canvas>
           <pre id="raw" class="small" style="max-height:140px;overflow:auto;background:#fafafa;border:1px solid #eee;padding:8px;border-radius:8px"></pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- Barcode Panel -->
-    <div class="panel" id="panel-barcode">
-      <div class="grid">
-        <div class="card">
-          <h3>Scanner code-barres</h3>
-          <video id="bvideo" class="image"></video>
-          <div class="controls">
-            <button class="btn btn-p" id="start-scan">Démarrer</button>
-            <button class="btn btn-o" id="stop-scan">Arrêter</button>
-          </div>
-          <div class="small">EAN-13 / UPC-A.</div>
-        </div>
-        <div class="card">
-          <h3>Ou saisir un code</h3>
-          <input type="text" id="barcode-input" placeholder="ex: 3274080005003"/>
-          <div class="controls">
-            <button class="btn btn-p" id="lookup">Rechercher</button>
-          </div>
-          <div class="small">Nécessite internet pour interroger OpenFoodFacts.</div>
         </div>
       </div>
     </div>
@@ -131,7 +131,7 @@
     <!-- Résultats + Produit -->
     <div class="grid">
       <div class="card">
-        <h3>Ingrédients détectés</h3>
+        <h3>Ingrédients</h3>
         <ul id="list" class="list"></ul>
         <div class="controls">
           <button class="btn btn-o" id="copy">Copier</button>
@@ -174,16 +174,15 @@
           </thead>
           <tbody></tbody>
         </table>
-        <div class="small">L'historique est stocké localement sur cet appareil (localStorage).</div>
+        <div class="small">Historique local (localStorage). Priorité OFF, OCR pour vérification.</div>
       </div>
     </div>
 
   </div>
-  <footer>Installable (PWA). OCR côté navigateur. Historique local exportable en un clic.</footer>
+  <footer>Installable (PWA). OFF d’abord, OCR ensuite pour corriger/compléter.</footer>
 </div>
 
 <script>
-// ===== Utils =====
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1):s; }
@@ -203,7 +202,7 @@ const KEYS_SUBTYPE = {
   champagne: [["brut",/\bbrut\b/i],["extra brut",/\bextra\s+brut\b/i],["rosé",/\bros[ée]\b/i],["blanc de blancs",/\bblanc de blancs\b/i],["demi-sec",/\bdemi-?sec\b/i]]
 };
 
-// ===== Tabs =====
+// Tabs
 $$('.tab').forEach(t=>t.addEventListener('click', ()=>{
   $$('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
@@ -213,10 +212,82 @@ $$('.tab').forEach(t=>t.addEventListener('click', ()=>{
   if(id==='historique') renderHistory();
 }));
 
-// ===== OCR section (as v2) =====
+// ===== OFF: code-barres + recherche nom =====
+let codeReader = null;
+$('#start-scan').onclick = async()=>{
+  try{
+    const { BrowserMultiFormatReader } = ZXingBrowser;
+    if(!codeReader) codeReader = new BrowserMultiFormatReader();
+    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    const back = devices.find(d=>/back|rear|environment/i.test(d.label))?.deviceId || devices[0]?.deviceId;
+    await codeReader.decodeFromVideoDevice(back, $('#bvideo'), (res)=>{
+      if(res){ $('#bvideo').style.border='2px solid #3cb371'; fetchOFFByCode(res.getText()); }
+    });
+  }catch(e){ alert('Scanner indisponible'); console.error(e); }
+};
+$('#stop-scan').onclick = ()=>{ if(codeReader){ codeReader.reset(); } };
+
+$('#search-btn').onclick = ()=>{
+  const q = $('#search-input').value.trim();
+  if(!q) return;
+  if(/^\d{8,14}$/.test(q)) fetchOFFByCode(q);
+  else fetchOFFByName(q);
+};
+
+// Lire code-barres sur l'image déjà importée en OCR
+$('#use-ocr-image').onclick = async()=>{
+  const img = document.getElementById('img');
+  if(!img || !img.src) return alert("Chargez d'abord une image dans l'onglet OCR.");
+  try{
+    const res = await ZXingBrowser.BrowserBarcodeReader.decodeFromImage(null, img);
+    if(res && res.getText){ fetchOFFByCode(res.getText()); }
+    else alert('Aucun code-barres détecté sur l’image.');
+  }catch(e){ alert('Échec de lecture du code-barres sur image.'); console.error(e); }
+};
+
+async function fetchOFFByCode(code){
+  try{
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+    const j = await r.json();
+    if(j && j.product){
+      fillFromOFF(j.product);
+    }else{
+      alert('Produit introuvable via ce code.');
+    }
+  }catch(e){ alert('Erreur OFF'); console.error(e); }
+}
+async function fetchOFFByName(name){
+  try{
+    // Recherche simple OFF
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(name)}&search_simple=1&json=1&page_size=1`;
+    const r = await fetch(url);
+    const j = await r.json();
+    if(j && j.products && j.products.length){
+      fillFromOFF(j.products[0]);
+    }else{
+      alert('Aucun produit trouvé pour ce nom.');
+    }
+  }catch(e){ alert('Erreur OFF'); console.error(e); }
+}
+
+function fillFromOFF(p){
+  const ing = p.ingredients_text_fr || p.ingredients_text || '';
+  handleText(ing || '');
+  $('#pname').value = p.product_name_fr || p.product_name || $('#pname').value;
+  const cats = (p.categories_tags || []).join(' ') + ' ' + (p.categories || '');
+  if(/beer|bi[eè]re/i.test(cats)) $('#ptype').value = 'biere';
+  else if(/champagne/i.test(cats)) $('#ptype').value = 'champagne';
+  else if(/vin|wine/i.test(cats)) $('#ptype').value = 'vin';
+  const txt = [p.labels_fr,p.labels_tags,p.brands,p.generic_name_fr,p.ingredients_text_fr].filter(Boolean).join(' ');
+  autoSubtypeFromText(txt);
+  updateCurrentPayload();
+  alert('Données OpenFoodFacts chargées. Vérifiez et corrigez si besoin.');
+}
+
+// ===== OCR (pour vérif/complément) =====
 let stream = null;
 let cropRect = null;
-const img = $('#img'), vid = $('#vid'), canvas = $('#canvas'), raw = $('#raw');
+const imgEl = $('#img'), vid = $('#vid'), canvas = $('#canvas'), raw = $('#raw');
 const ctx = canvas.getContext('2d');
 
 $('#pick').onclick = ()=> $('#file').click();
@@ -226,56 +297,58 @@ $('#file').onchange = (e)=>{
   if(!file.type.startsWith('image/')) return alert('Image invalide');
   const url = URL.createObjectURL(file);
   stopCamera();
-  img.src = url; img.style.display='block'; vid.style.display='none';
+  imgEl.src = url; imgEl.style.display='block'; vid.style.display='none';
 };
 $('#camera').onclick = async()=>{
   try{
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    vid.srcObject = stream; vid.style.display='block'; img.style.display='none';
+    vid.srcObject = stream; vid.style.display='block'; imgEl.style.display='none';
   }catch(e){ alert('Caméra indisponible'); }
 };
-$('#reset').onclick = ()=>{ stopCamera(); img.src=''; vid.srcObject=null; raw.textContent=''; cropRect=null; };
-
+$('#reset').onclick = ()=>{ stopCamera(); imgEl.src=''; vid.srcObject=null; raw.textContent=''; cropRect=null; };
 function stopCamera(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
-
 $('#crop').onclick = ()=>{ alert('Desktop: cliquez-glissez sur l’image pour définir la zone ingrédients.'); };
 let isDragging=false, startX=0, startY=0;
-img.addEventListener('mousedown',(e)=>{ isDragging=true; startX=e.offsetX; startY=e.offsetY; });
-img.addEventListener('mouseup',(e)=>{ if(!isDragging) return; isDragging=false; cropRect = { x:Math.min(startX,e.offsetX), y:Math.min(startY,e.offsetY), w:Math.abs(e.offsetX-startX), h:Math.abs(e.offsetY-startY) }; alert('Zone définie. Lancez l’OCR.'); });
+imgEl.addEventListener('mousedown',(e)=>{ isDragging=true; startX=e.offsetX; startY=e.offsetY; });
+imgEl.addEventListener('mouseup',(e)=>{ if(!isDragging) return; isDragging=false; cropRect = { x:Math.min(startX,e.offsetX), y:Math.min(startY,e.offsetY), w:Math.abs(e.offsetX-startX), h:Math.abs(e.offsetY-startY) }; alert('Zone définie. OCR possible.'); });
 
 async function drawToCanvas(){
   return new Promise((resolve)=>{
-    const source = vid.style.display==='block' ? vid : img;
+    const source = vid.style.display==='block' ? vid : imgEl;
     if(!source || (!source.src && source!==vid)) return resolve(false);
     const w = source.videoWidth || source.naturalWidth, h = source.videoHeight || source.naturalHeight;
     if(!w||!h) return resolve(false);
     canvas.width=w; canvas.height=h;
+    const ctx = canvas.getContext('2d');
     ctx.drawImage(source,0,0,w,h);
     resolve(true);
   });
 }
-
-function preprocess({bw, sh, deskew}){
-  const w=canvas.width, h=canvas.height;
-  let sx=0, sy=0, sw=w, shh=h;
+function preprocess({bw, sh}){
+  const ctx = canvas.getContext('2d');
+  let imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  let d = imgData.data;
   if(cropRect){
-    const dispW = img.clientWidth, dispH = img.clientHeight;
+    const w=canvas.width,h=canvas.height;
+    const dispW = imgEl.clientWidth, dispH = imgEl.clientHeight;
     const scaleX = w/dispW, scaleY = h/dispH;
-    sx = Math.max(0, Math.floor(cropRect.x*scaleX));
-    sy = Math.max(0, Math.floor(cropRect.y*scaleY));
-    sw = Math.min(w-sx, Math.floor(cropRect.w*scaleX));
-    shh= Math.min(h-sy, Math.floor(cropRect.h*scaleY));
+    const sx = Math.max(0, Math.floor(cropRect.x*scaleX));
+    const sy = Math.max(0, Math.floor(cropRect.y*scaleY));
+    const sw = Math.min(w-sx, Math.floor(cropRect.w*scaleX));
+    const shh= Math.min(h-sy, Math.floor(cropRect.h*scaleY));
     const tmp = ctx.getImageData(sx,sy,sw,shh);
     canvas.width=sw; canvas.height=shh;
     ctx.putImageData(tmp,0,0);
+    imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    d = imgData.data;
   }
-  let imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
-  let d = imgData.data;
+  // grayscale
   for(let i=0;i<d.length;i+=4){
     const y = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
     d[i]=d[i+1]=d[i+2]=y;
   }
   if(bw){
+    // simple Otsu-like threshold
     let hist = new Array(256).fill(0);
     for(let i=0;i<d.length;i+=4) hist[d[i]|0]++;
     let sum=0; for(let t=0;t<256;t++) sum+=t*hist[t];
@@ -313,7 +386,7 @@ function preprocess({bw, sh, deskew}){
 
 $('#run').onclick = async()=>{
   const ok = await drawToCanvas(); if(!ok) return alert('Chargez une image ou utilisez la caméra.');
-  preprocess({bw: $('#bw').checked, sh: $('#sh').checked, deskew: $('#deskew').checked});
+  preprocess({bw: $('#bw').checked, sh: $('#sh').checked});
   const dataUrl = canvas.toDataURL('image/png');
   const worker = await Tesseract.createWorker("fra", 1, { logger: m => {} });
   const { data:{ text } } = await worker.recognize(dataUrl);
@@ -322,51 +395,10 @@ $('#run').onclick = async()=>{
   handleText(text);
 };
 
-// ===== Barcode (ZXing) + OFF =====
-let codeReader = null;
-$('#start-scan').onclick = async()=>{
-  try{
-    const { BrowserMultiFormatReader } = ZXingBrowser;
-    if(!codeReader) codeReader = new BrowserMultiFormatReader();
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const back = devices.find(d=>/back|rear|environment/i.test(d.label))?.deviceId || devices[0]?.deviceId;
-    await codeReader.decodeFromVideoDevice(back, $('#bvideo'), (res)=>{ if(res){ $('#bvideo').style.border='2px solid #3cb371'; fetchOFF(res.getText()); }});
-  }catch(e){ alert('Scanner indisponible'); }
-};
-$('#stop-scan').onclick = ()=>{ if(codeReader){ codeReader.reset(); } };
-$('#lookup').onclick = ()=>{ const code=$('#barcode-input').value.trim(); if(!/^\d{8,14}$/.test(code)) return alert('Code invalide'); fetchOFF(code); };
-
-async function fetchOFF(code){
-  try{
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
-    const j = await r.json();
-    if(j && j.product){
-      const p = j.product;
-      const ing = p.ingredients_text_fr || p.ingredients_text || '';
-      handleText(ing || '');
-      $('#pname').value = p.product_name_fr || p.product_name || $('#pname').value;
-      const cats = (p.categories_tags || []).join(' ');
-      if(/beer|bi[eè]re/i.test(cats)) $('#ptype').value = 'biere';
-      else if(/champagne/i.test(cats)) $('#ptype').value = 'champagne';
-      else if(/vin|wine/i.test(cats)) $('#ptype').value = 'vin';
-      const txt = [p.labels_fr,p.labels_tags,p.brands,p.generic_name_fr,p.ingredients_text_fr].filter(Boolean).join(' ');
-      autoSubtypeFromText(txt);
-      updateCurrentPayload(); // prepare payload after OFF
-    }else{ alert('Produit introuvable'); }
-  }catch(e){ alert('Erreur OFF'); console.error(e); }
-}
-
 // ===== Manuel =====
 $('#parse-manual').onclick = ()=>{ handleText($('#manual-text').value); };
 
-// ===== Parsing commun =====
-function handleText(text){
-  const ings = extractIngredients(text);
-  renderIngredients(ings);
-  autoDetectProduct(splitLines(text));
-  updateCurrentPayload();
-}
-
+// ===== Parsing commun & produit =====
 function splitLines(text){ return (text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean); }
 
 function extractIngredients(rawText){
@@ -432,19 +464,22 @@ function autoDetectProduct(lines){
 function autoSubtypeFromText(text){
   const joined = String(text||"");
   const type = $('#ptype').value;
-  const selected = type || 'biere';
   const map = KEYS_SUBTYPE[type] || [];
   for(const [label, rx] of map){ if(rx.test(joined)){ $('#psub').value = capitalize(label); break; } }
+}
+
+// Common handler
+function handleText(text){
+  const ings = extractIngredients(text);
+  renderIngredients(ings);
+  autoDetectProduct(text.split(/\r?\n/));
+  updateCurrentPayload();
 }
 
 // ===== Current payload & single-product export =====
 function collectIngredients(){ return [...$$('#list .row span:last-child')].map(x=>x.textContent); }
 function currentProduct(){
-  return {
-    product: { type: $('#ptype').value || null, name: $('#pname').value || null, subtype: $('#psub').value || null },
-    ingredients: collectIngredients(),
-    ts: Date.now()
-  };
+  return { product: { type: $('#ptype').value || null, name: $('#pname').value || null, subtype: $('#psub').value || null }, ingredients: collectIngredients(), ts: Date.now() };
 }
 function updateCurrentPayload(){ window.__current = currentProduct(); }
 
@@ -457,43 +492,16 @@ const KEY = 'labels_history_v1';
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch{ return []; } }
 function saveHistory(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); }
 function addToHistory(entry){
-  const hist = loadHistory();
-  hist.push(entry);
-  saveHistory(hist);
-  renderHistory();
-  alert('Enregistré dans l’historique.');
-}
-function deleteFromHistory(idx){
-  const hist = loadHistory();
-  hist.splice(idx,1);
-  saveHistory(hist);
-  renderHistory();
-}
-function clearHistory(){
-  if(!confirm('Supprimer tout l’historique ?')) return;
-  localStorage.removeItem(KEY);
-  renderHistory();
-}
+  const hist = loadHistory(); hist.push(entry); saveHistory(hist); renderHistory(); alert('Enregistré.'); }
+function deleteFromHistory(idx){ const hist = loadHistory(); hist.splice(idx,1); saveHistory(hist); renderHistory(); }
+function clearHistory(){ if(!confirm('Supprimer tout l’historique ?')) return; localStorage.removeItem(KEY); renderHistory(); }
 function renderHistory(){
   const tbody = $('#history-table tbody');
-  const hist = loadHistory();
-  tbody.innerHTML = '';
-  if(hist.length===0){
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="6" style="text-align:center;color:#666">Aucun enregistrement.</td>';
-    tbody.appendChild(tr);
-    return;
-  }
-  hist.forEach((p, idx)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${fmtDate(p.ts || Date.now())}</td>
-      <td>${escapeHtml(p.product?.name||'')}</td>
-      <td>${escapeHtml(p.product?.type||'')}</td>
-      <td>${escapeHtml(p.product?.subtype||'')}</td>
-      <td>${(p.ingredients||[]).length}</td>
-      <td><button class="btn btn-o" data-del="${idx}">Supprimer</button></td>
-    `;
+  const hist = loadHistory(); tbody.innerHTML='';
+  if(hist.length===0){ const tr=document.createElement('tr'); tr.innerHTML='<td colspan="6" style="text-align:center;color:#666">Aucun enregistrement.</td>'; tbody.appendChild(tr); return; }
+  hist.forEach((p,idx)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${fmtDate(p.ts||Date.now())}</td><td>${escapeHtml(p.product?.name||'')}</td><td>${escapeHtml(p.product?.type||'')}</td><td>${escapeHtml(p.product?.subtype||'')}</td><td>${(p.ingredients||[]).length}</td><td><button class="btn btn-o" data-del="${idx}">Supprimer</button></td>`;
     tbody.appendChild(tr);
   });
   $$('#history-table [data-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteFromHistory(parseInt(btn.getAttribute('data-del')))));
@@ -501,29 +509,12 @@ function renderHistory(){
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
 $('#save').onclick = ()=>{ const payload = currentProduct(); if(!payload.product.name && payload.ingredients.length===0){ return alert('Aucun contenu à enregistrer.'); } addToHistory(payload); };
-
-// Export ALL
-$('#export-all-csv').onclick = ()=>{
-  const hist = loadHistory();
-  const rows = [["date","nom","categorie","sous_type","ingredients"]];
-  hist.forEach(p=>{
-    rows.push([fmtDate(p.ts||Date.now()), p.product?.name||"", p.product?.type||"", p.product?.subtype||"", (p.ingredients||[]).join(" | ")]);
-  });
-  const csv = rows.map(r=>r.map(escapeCsv).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv"});
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.csv'; a.click(); URL.revokeObjectURL(url);
-};
-$('#export-all-json').onclick = ()=>{
-  const hist = loadHistory();
-  const pretty = JSON.stringify(hist, null, 2);
-  const blob = new Blob([pretty], {type:"application/json"});
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.json'; a.click(); URL.revokeObjectURL(url);
-};
+$('#export-all-csv').onclick = ()=>{ const hist = loadHistory(); const rows = [["date","nom","categorie","sous_type","ingredients"]]; hist.forEach(p=>{ rows.push([fmtDate(p.ts||Date.now()), p.product?.name||"", p.product?.type||"", p.product?.subtype||"", (p.ingredients||[]).join(" | ")]); }); const csv = rows.map(r=>r.map(escapeCsv).join(",")).join("\n"); const blob = new Blob([csv], {type:"text/csv"}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.csv'; a.click(); URL.revokeObjectURL(url); };
+$('#export-all-json').onclick = ()=>{ const hist = loadHistory(); const pretty = JSON.stringify(hist, null, 2); const blob = new Blob([pretty], {type:"application/json"}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.json'; a.click(); URL.revokeObjectURL(url); };
 $('#clear-history').onclick = clearHistory;
 
-// ===== PWA SW =====
+// SW
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('./service-worker.js')); }
-
 </script>
 </body>
 </html>
