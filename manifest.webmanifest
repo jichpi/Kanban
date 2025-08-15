@@ -1,6 +1,6 @@
 {
-  "name": "OCR Étiquettes Ingrédients",
-  "short_name": "OCR Étiquettes",
+  "name": "Étiquettes Boissons v3",
+  "short_name": "Étiquettes v3",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",

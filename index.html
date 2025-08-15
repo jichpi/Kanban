@@ -3,457 +3,527 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reconnaissance d'Étiquettes - OCR Ingrédients</title>
+  <title>Étiquettes Boissons — OCR / Code-barres (v3)</title>
   <meta name="theme-color" content="#4b6cb7"/>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
     body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
-    .container{background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);width:100%;max-width:980px;overflow:hidden}
-    header{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff;padding:24px;text-align:center}
-    h1{font-size:2rem;margin-bottom:6px}
+    .container{background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);width:100%;max-width:1200px;overflow:hidden}
+    header{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff;padding:22px;text-align:center}
+    h1{font-size:1.9rem;margin-bottom:6px}
     .subtitle{opacity:.9}
-    .main-content{padding:22px}
-    .upload-section{text-align:center;margin-bottom:24px}
-    .upload-area{border:3px dashed #4b6cb7;border-radius:15px;padding:28px 16px;cursor:pointer;transition:.2s;background:#f8f9ff;margin-bottom:16px}
-    .upload-area:hover{background:#eef1ff;transform:translateY(-2px)}
-    .upload-icon{font-size:2.4rem;color:#4b6cb7;margin-bottom:8px}
-    .upload-text{font-size:1rem;color:#333;margin-bottom:10px}
-    .btn{border:none;border-radius:999px;padding:10px 18px;font-weight:600;cursor:pointer;transition:.2s}
-    .btn-primary{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff;box-shadow:0 5px 15px rgba(75,108,183,.4)}
-    .btn-outline{background:#f8f9ff;color:#4b6cb7;border:2px solid #4b6cb7}
-    .btn:hover{transform:translateY(-2px)}
-    #file-input{display:none}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .preview-section{display:none;margin-bottom:18px}
-    .preview-title{text-align:center;color:#182848;margin-bottom:10px}
-    .image-preview{width:100%;max-height:360px;object-fit:contain;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,.08)}
-    .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0}
-    .loading{display:none;text-align:center;margin:18px 0}
-    .spinner{border:5px solid #f3f3f3;border-top:5px solid #4b6cb7;border-radius:50%;width:44px;height:44px;animation:spin 1s linear infinite;margin:0 auto 12px}
-    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-    .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px}
-    .results-section{display:none}
-    .results-title{text-align:center;color:#182848;margin:6px 0 12px}
-    .ingredients-list{list-style:none;background:#f8f9ff;border-radius:10px;padding:10px}
-    .ingredient-item{display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid #e9e9ee}
-    .ingredient-item:last-child{border-bottom:none}
+    .main{padding:18px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+    .tab{border:1px solid #4b6cb7;color:#4b6cb7;background:#f8f9ff;padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600}
+    .tab.active{background:#4b6cb7;color:#fff}
+    .panel{display:none}
+    .panel.active{display:block}
+    .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .image{width:100%;max-height:380px;object-fit:contain;border-radius:10px;border:1px solid #eee}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .btn{border:none;border-radius:999px;padding:10px 16px;font-weight:600;cursor:pointer}
+    .btn-p{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff}
+    .btn-o{background:#fff;border:2px solid #4b6cb7;color:#4b6cb7}
+    .small{font-size:.9rem;color:#555}
+    .list{list-style:none;background:#f8f9ff;border-radius:10px;padding:10px}
+    .row{display:flex;gap:10px;align-items:center;border-bottom:1px solid #e9e9ee;padding:8px 6px}
+    .row:last-child{border-bottom:none}
     .pill{font-size:.75rem;padding:2px 8px;border-radius:999px;border:1px solid #ddd}
-    .pill-allergen{border-color:#b40000;color:#b40000;background:#ffe9e9}
-    .pill-maybe{border-color:#8a7600;color:#8a7600;background:#fff7d6}
-    .actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:16px}
-    footer{text-align:center;padding:14px;color:#666;font-size:.9rem;border-top:1px solid #eee}
-    label{font-weight:600;color:#182848;margin-bottom:6px;display:block}
-    input[type="text"],select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px}
-    .small{font-size:.9rem;color:#666;margin-top:6px}
-    @media (max-width:820px){.grid{grid-template-columns:1fr}h1{font-size:1.6rem}.main-content{padding:16px}}
+    .pill-danger{border-color:#b40000;color:#b40000;background:#ffe9e9}
+    .pill-warn{border-color:#8a7600;color:#8a7600;background:#fff7d6}
+    input[type="text"],textarea,select{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px}
+    footer{text-align:center;padding:12px;border-top:1px solid #eee;color:#666}
+    canvas{max-width:100%}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #eee;text-align:left;padding:8px}
+    th{background:#f6f7ff}
+    .right{justify-content:flex-end}
+    @media(max-width:1000px){.grid{grid-template-columns:1fr}}
   </style>
+  <!-- OCR + Barcode libs -->
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>Reconnaissance d'Étiquettes</h1>
-    <p class="subtitle">OCR des ingrédients + détection du produit (type, nom, sous-type) • fonctionne hors-ligne</p>
+    <h1>Étiquettes Boissons</h1>
+    <p class="subtitle">OCR amélioré • Code-barres OpenFoodFacts • Historique & Export global (v3)</p>
   </header>
 
-  <div class="main-content">
-    <div class="upload-section card">
-      <div class="upload-area" id="upload-area">
-        <div class="upload-icon">📷</div>
-        <p class="upload-text">Glissez-déposez une image ici ou cliquez pour sélectionner</p>
-        <div class="controls">
-          <button class="btn btn-primary" id="pick-btn">Sélectionner une image</button>
-          <button class="btn btn-outline" id="camera-btn">Prendre une photo</button>
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" data-tab="ocr">OCR</button>
+      <button class="tab" data-tab="barcode">Code-barres</button>
+      <button class="tab" data-tab="manuel">Manuel</button>
+      <button class="tab" data-tab="historique">Historique</button>
+    </div>
+
+    <!-- OCR Panel -->
+    <div class="panel active" id="panel-ocr">
+      <div class="grid">
+        <div class="card">
+          <h3>Image</h3>
+          <img id="img" class="image" alt="aperçu"/>
+          <video id="vid" class="image" style="display:none" autoplay playsinline></video>
+          <div class="controls">
+            <input type="file" id="file" accept="image/*" hidden/>
+            <button class="btn btn-p" id="pick">Importer</button>
+            <button class="btn btn-o" id="camera">Caméra</button>
+            <button class="btn btn-o" id="crop">Zone “Ingrédients”</button>
+            <button class="btn btn-o" id="reset">Réinitialiser</button>
+          </div>
+          <div class="small">Astuce : recadrez la zone puis lancez l’OCR.</div>
         </div>
-        <input type="file" id="file-input" accept="image/*" />
+
+        <div class="card">
+          <h3>Pré-traitement & OCR</h3>
+          <div class="controls">
+            <label class="small"><input type="checkbox" id="bw"> Noir & blanc</label>
+            <label class="small"><input type="checkbox" id="sh"> Netteté</label>
+            <label class="small"><input type="checkbox" id="deskew"> Deskew</label>
+          </div>
+          <div class="controls">
+            <button class="btn btn-p" id="run">Lancer l’OCR</button>
+          </div>
+          <canvas id="canvas" style="display:none"></canvas>
+          <pre id="raw" class="small" style="max-height:140px;overflow:auto;background:#fafafa;border:1px solid #eee;padding:8px;border-radius:8px"></pre>
+        </div>
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
-        <div class="preview-section" id="preview-section">
-          <h2 class="preview-title">Aperçu</h2>
-          <img id="image-preview" class="image-preview" alt="Aperçu de l'image">
-          <video id="camera-preview" class="image-preview" style="display:none" autoplay playsinline></video>
+    <!-- Barcode Panel -->
+    <div class="panel" id="panel-barcode">
+      <div class="grid">
+        <div class="card">
+          <h3>Scanner code-barres</h3>
+          <video id="bvideo" class="image"></video>
           <div class="controls">
-            <button class="btn btn-primary" id="analyze-btn">Analyser l’image</button>
-            <button class="btn btn-outline" id="reset-btn">Réinitialiser</button>
+            <button class="btn btn-p" id="start-scan">Démarrer</button>
+            <button class="btn btn-o" id="stop-scan">Arrêter</button>
           </div>
+          <div class="small">EAN-13 / UPC-A.</div>
         </div>
-
-        <div class="loading" id="loading">
-          <div class="spinner"></div>
-          <p class="loading-text" id="loading-text">OCR en cours…</p>
-        </div>
-
-        <div class="results-section" id="results-section">
-          <h2 class="results-title">Ingrédients identifiés</h2>
-          <ul class="ingredients-list" id="ingredients-list"></ul>
-          <div class="actions">
-            <button class="btn btn-outline" id="copy-btn">Copier la liste</button>
-            <button class="btn btn-outline" id="csv-btn">Exporter CSV</button>
+        <div class="card">
+          <h3>Ou saisir un code</h3>
+          <input type="text" id="barcode-input" placeholder="ex: 3274080005003"/>
+          <div class="controls">
+            <button class="btn btn-p" id="lookup">Rechercher</button>
           </div>
+          <div class="small">Nécessite internet pour interroger OpenFoodFacts.</div>
         </div>
       </div>
+    </div>
 
+    <!-- Manuel Panel -->
+    <div class="panel" id="panel-manuel">
       <div class="card">
-        <h2 class="preview-title">Produit</h2>
-        <label for="productType">Catégorie</label>
-        <select id="productType">
-          <option value="">-- détecter automatiquement --</option>
+        <h3>Coller du texte</h3>
+        <textarea id="manual-text" rows="6" placeholder="Collez la zone ingrédients / description produit…"></textarea>
+        <div class="controls">
+          <button class="btn btn-p" id="parse-manual">Analyser</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Résultats + Produit -->
+    <div class="grid">
+      <div class="card">
+        <h3>Ingrédients détectés</h3>
+        <ul id="list" class="list"></ul>
+        <div class="controls">
+          <button class="btn btn-o" id="copy">Copier</button>
+          <button class="btn btn-o" id="csv">CSV (ce produit)</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Produit</h3>
+        <label>Catégorie</label>
+        <select id="ptype">
+          <option value="">-- auto --</option>
           <option value="biere">Bière</option>
           <option value="vin">Vin</option>
           <option value="champagne">Champagne</option>
         </select>
-
-        <label for="productName" style="margin-top:10px;">Nom / Marque</label>
-        <input type="text" id="productName" placeholder="ex: Chimay Grande Réserve">
-
-        <label for="productSubType" style="margin-top:10px;">Sous-type</label>
-        <input type="text" id="productSubType" placeholder="ex: IPA / Blonde / Rouge / Rosé / Blanc">
-
-        <div class="small">Ces champs se remplissent automatiquement après l’OCR (si possible), et tu peux corriger manuellement.</div>
-
-        <div class="actions" style="justify-content:flex-start;margin-top:12px">
-          <button class="btn btn-primary" id="export-json">Exporter JSON</button>
+        <label style="margin-top:8px">Nom / Marque</label>
+        <input type="text" id="pname" placeholder="ex: Chimay Grande Réserve"/>
+        <label style="margin-top:8px">Sous-type</label>
+        <input type="text" id="psub" placeholder="ex: IPA / Blonde / Rouge / Rosé / Blanc"/>
+        <div class="controls" style="margin-top:8px">
+          <button class="btn btn-p" id="save">Enregistrer dans l'historique</button>
+          <button class="btn btn-o" id="export-json">JSON (ce produit)</button>
         </div>
-
-        <textarea id="json-output" rows="10" style="margin-top:10px" placeholder="Sortie JSON..."></textarea>
       </div>
     </div>
-  </div>
 
-  <footer>
-    <p>Appli PWA : installable, fonctionne hors-ligne. OCR côté navigateur, aucune image envoyée.</p>
-  </footer>
+    <!-- Historique Panel -->
+    <div class="panel" id="panel-historique">
+      <div class="card">
+        <div class="controls right">
+          <button class="btn btn-p" id="export-all-csv">Exporter TOUT en CSV</button>
+          <button class="btn btn-o" id="export-all-json">Exporter TOUT en JSON</button>
+          <button class="btn btn-o" id="clear-history">Vider l'historique</button>
+        </div>
+        <table id="history-table">
+          <thead>
+            <tr>
+              <th>Date</th><th>Nom</th><th>Catégorie</th><th>Sous-type</th><th># Ingrédients</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="small">L'historique est stocké localement sur cet appareil (localStorage).</div>
+      </div>
+    </div>
+
+  </div>
+  <footer>Installable (PWA). OCR côté navigateur. Historique local exportable en un clic.</footer>
 </div>
 
 <script>
-(function(){
-  const uploadArea = document.getElementById('upload-area');
-  const fileInput = document.getElementById('file-input');
-  const pickBtn = document.getElementById('pick-btn');
-  const cameraBtn = document.getElementById('camera-btn');
-  const imagePreview = document.getElementById('image-preview');
-  const cameraPreview = document.getElementById('camera-preview');
-  const previewSection = document.getElementById('preview-section');
-  const analyzeBtn = document.getElementById('analyze-btn');
-  const resetBtn = document.getElementById('reset-btn');
-  const loading = document.getElementById('loading');
-  const loadingText = document.getElementById('loading-text');
-  const resultsSection = document.getElementById('results-section');
-  const ingredientsList = document.getElementById('ingredients-list');
-  const copyBtn = document.getElementById('copy-btn');
-  const csvBtn = document.getElementById('csv-btn');
-  const exportBtn = document.getElementById('export-json');
-  const jsonOutput = document.getElementById('json-output');
+// ===== Utils =====
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1):s; }
+function normWS(s){ return (s||"").replace(/\r?\n/g," ").replace(/\s{2,}/g," ").trim(); }
+function escapeCsv(s){ return /[,"\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleString(); }
 
-  const productType = document.getElementById('productType');
-  const productName = document.getElementById('productName');
-  const productSubType = document.getElementById('productSubType');
+const ALLERGENES = ["gluten","lait","lactose","œuf","oeuf","arachide","soja","noisette","amande","noix","noix de cajou","pistache","noix de pécan","sulfites","crustacé","crustacés","moutarde","céleri","graines de sésame","sésame","lupin","poisson","mollusque","mollusques"];
+const KEYS_PRODUCT = {
+  biere: [/bi[eè]re\b/i, /\bbeer\b/i, /\bipa\b/i, /\bstout\b/i, /\bblonde\b/i, /\bbrune\b/i, /\btriple\b/i, /\blager\b/i, /\bpils?\b/i],
+  vin: [/\bvin\b/i, /\bappellation\b/i, /\b(aoc|aop|igp)\b/i, /\bch[âa]teau\b/i, /\bc[ée]pages?\b/i],
+  champagne: [/\bchampagne\b/i, /\bgrand cru\b/i, /\bbrut\b/i, /\bblanc de blancs\b/i]
+};
+const KEYS_SUBTYPE = {
+  biere: [["ipa",/\bipa\b/i],["blonde",/\bblonde\b/i],["brune",/\bbrune\b/i],["ambrée",/\bambr[ée]e?\b/i],["stout",/\bstout\b/i],["triple",/\btriple\b/i],["pale ale",/\bpale ale\b/i]],
+  vin: [["rouge",/\brouge\b/i],["rosé",/\bros[ée]\b/i],["blanc",/\bblanc\b/i],["moelleux",/\bmoelleux\b/i],["sec",/\bsec\b/i]],
+  champagne: [["brut",/\bbrut\b/i],["extra brut",/\bextra\s+brut\b/i],["rosé",/\bros[ée]\b/i],["blanc de blancs",/\bblanc de blancs\b/i],["demi-sec",/\bdemi-?sec\b/i]]
+};
 
-  const ALLERGENES = [
-    "gluten","lait","lactose","œuf","oeuf","arachide","soja",
-    "noisette","amande","noix","noix de cajou","pistache","noix de pécan",
-    "sulfites","crustacé","crustacés","moutarde","céleri","graines de sésame",
-    "sésame","lupin","poisson","mollusque","mollusques"
-  ];
+// ===== Tabs =====
+$$('.tab').forEach(t=>t.addEventListener('click', ()=>{
+  $$('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  const id = t.dataset.tab;
+  $$('.panel').forEach(p=>p.classList.remove('active'));
+  $('#panel-'+id).classList.add('active');
+  if(id==='historique') renderHistory();
+}));
 
-  // Heuristiques de détection produit
-  const KEYS_PRODUCT = {
-    biere: [/bi[eè]re\b/i, /\bbier\b/i, /\bbeer\b/i, /\bipa\b/i, /\bstout\b/i, /\bblonde\b/i, /\bbrune\b/i, /\btriple\b/i, /\bweiss\b/i, /\bwheat\b/i, /\blager\b/i, /\bpils?\b/i],
-    vin: [/\bvin\b/i, /\bappellation\b/i, /\baoc\b/i, /\bigt?\b/i, /\bIGP\b/i, /\bAOP\b/i, /\bch[âa]teau\b/i, /\bc[ée]pages?\b/i],
-    champagne: [/\bchampagne\b/i, /\bmaison\b/i, /\bgrand cru\b/i, /\bbrut\b/i, /\bblanc de blancs\b/i]
-  };
-  const KEYS_SUBTYPE = {
-    biere: [ ["ipa",/\bipa\b/i], ["blonde",/\bblonde\b/i], ["brune",/\bbrune\b/i], ["ambree",/\bambr[ée]e?\b/i], ["stout",/\bstout\b/i], ["triple",/\btriple\b/i], ["pale ale",/\bpale ale\b/i] ],
-    vin: [ ["rouge",/\brouge\b/i], ["rosé",/\bros[ée]\b/i], ["blanc",/\bblanc\b/i], ["moelleux",/\bmoelleux\b/i], ["sec",/\bsec\b/i] ],
-    champagne: [ ["brut",/\bbrut\b/i], ["extra brut",/\bextra\s+brut\b/i], ["rosé",/\bros[ée]\b/i], ["blanc de blancs",/\bblanc de blancs\b/i], ["demi-sec",/\bdemi-?sec\b/i] ]
-  };
+// ===== OCR section (as v2) =====
+let stream = null;
+let cropRect = null;
+const img = $('#img'), vid = $('#vid'), canvas = $('#canvas'), raw = $('#raw');
+const ctx = canvas.getContext('2d');
 
-  let stream = null;
-  let currentImageBlobUrl = "";
+$('#pick').onclick = ()=> $('#file').click();
+$('#file').onchange = (e)=>{
+  if(!e.target.files.length) return;
+  const file = e.target.files[0];
+  if(!file.type.startsWith('image/')) return alert('Image invalide');
+  const url = URL.createObjectURL(file);
+  stopCamera();
+  img.src = url; img.style.display='block'; vid.style.display='none';
+};
+$('#camera').onclick = async()=>{
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    vid.srcObject = stream; vid.style.display='block'; img.style.display='none';
+  }catch(e){ alert('Caméra indisponible'); }
+};
+$('#reset').onclick = ()=>{ stopCamera(); img.src=''; vid.srcObject=null; raw.textContent=''; cropRect=null; };
 
-  // SW registration
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js').catch(console.error);
-    });
-  }
+function stopCamera(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
 
-  // Entrée
-  pickBtn.addEventListener('click', () => fileInput.click());
-  uploadArea.addEventListener('click', () => fileInput.click());
-  uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.style.background = '#eef1ff'; });
-  uploadArea.addEventListener('dragleave', () => { uploadArea.style.background = '#f8f9ff'; });
-  uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault(); uploadArea.style.background = '#f8f9ff';
-    if(e.dataTransfer.files.length){ handleFile(e.dataTransfer.files[0]); }
+$('#crop').onclick = ()=>{ alert('Desktop: cliquez-glissez sur l’image pour définir la zone ingrédients.'); };
+let isDragging=false, startX=0, startY=0;
+img.addEventListener('mousedown',(e)=>{ isDragging=true; startX=e.offsetX; startY=e.offsetY; });
+img.addEventListener('mouseup',(e)=>{ if(!isDragging) return; isDragging=false; cropRect = { x:Math.min(startX,e.offsetX), y:Math.min(startY,e.offsetY), w:Math.abs(e.offsetX-startX), h:Math.abs(e.offsetY-startY) }; alert('Zone définie. Lancez l’OCR.'); });
+
+async function drawToCanvas(){
+  return new Promise((resolve)=>{
+    const source = vid.style.display==='block' ? vid : img;
+    if(!source || (!source.src && source!==vid)) return resolve(false);
+    const w = source.videoWidth || source.naturalWidth, h = source.videoHeight || source.naturalHeight;
+    if(!w||!h) return resolve(false);
+    canvas.width=w; canvas.height=h;
+    ctx.drawImage(source,0,0,w,h);
+    resolve(true);
   });
-  fileInput.addEventListener('change', (e) => { if(e.target.files.length){ handleFile(e.target.files[0]); } });
+}
 
-  // Caméra
-  document.getElementById('camera-btn').addEventListener('click', async() => {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      cameraPreview.srcObject = stream;
-      cameraPreview.style.display = 'block';
-      imagePreview.style.display = 'none';
-      previewSection.style.display = 'block';
-      analyzeBtn.textContent = "Capturer & Analyser";
-    } catch(err){ alert("Accès caméra refusé ou indisponible."); console.error(err); }
-  });
-
-  function stopCamera(){
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
-    cameraPreview.style.display = 'none';
-    analyzeBtn.textContent = "Analyser l’image";
+function preprocess({bw, sh, deskew}){
+  const w=canvas.width, h=canvas.height;
+  let sx=0, sy=0, sw=w, shh=h;
+  if(cropRect){
+    const dispW = img.clientWidth, dispH = img.clientHeight;
+    const scaleX = w/dispW, scaleY = h/dispH;
+    sx = Math.max(0, Math.floor(cropRect.x*scaleX));
+    sy = Math.max(0, Math.floor(cropRect.y*scaleY));
+    sw = Math.min(w-sx, Math.floor(cropRect.w*scaleX));
+    shh= Math.min(h-sy, Math.floor(cropRect.h*scaleY));
+    const tmp = ctx.getImageData(sx,sy,sw,shh);
+    canvas.width=sw; canvas.height=shh;
+    ctx.putImageData(tmp,0,0);
   }
-
-  function handleFile(file){
-    if(!file.type.match('image.*')){ alert("Veuillez sélectionner une image valide."); return; }
-    stopCamera();
-    const url = URL.createObjectURL(file);
-    currentImageBlobUrl = url;
-    imagePreview.src = url;
-    imagePreview.style.display = 'block';
-    previewSection.style.display = 'block';
-    resultsSection.style.display = 'none';
+  let imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  let d = imgData.data;
+  for(let i=0;i<d.length;i+=4){
+    const y = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    d[i]=d[i+1]=d[i+2]=y;
   }
-
-  // OCR + Extraction
-  analyzeBtn.addEventListener('click', async () => {
-    let dataUrl = null;
-
-    if(stream){
-      loading.style.display = 'block';
-      loadingText.textContent = "Capture…";
-      const canvas = document.createElement('canvas');
-      canvas.width = cameraPreview.videoWidth;
-      canvas.height = cameraPreview.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-      dataUrl = canvas.toDataURL('image/png');
-      imagePreview.src = dataUrl;
-      imagePreview.style.display = 'block';
-      stopCamera();
-    } else {
-      if(!imagePreview.src){ alert("Veuillez d'abord sélectionner une image."); return; }
-      dataUrl = imagePreview.src;
+  if(bw){
+    let hist = new Array(256).fill(0);
+    for(let i=0;i<d.length;i+=4) hist[d[i]|0]++;
+    let sum=0; for(let t=0;t<256;t++) sum+=t*hist[t];
+    let sumB=0,wB=0,wF=0,max=0,th=127;
+    const total = canvas.width*canvas.height;
+    for(let t=0;t<256;t++){
+      wB += hist[t]; if(!wB) continue;
+      wF = total - wB; if(!wF) break;
+      sumB += t*hist[t];
+      const mB=sumB/wB, mF=(sum-sumB)/wF;
+      const between = wB*wF*(mB-mF)*(mB-mF);
+      if(between>max){ max=between; th=t; }
     }
-
-    try{
-      loading.style.display = 'block';
-      loadingText.textContent = "OCR en cours…";
-      resultsSection.style.display = 'none';
-
-      const worker = await Tesseract.createWorker("fra", 1, { logger: m => {} });
-      const { data: { text } } = await worker.recognize(dataUrl);
-      await worker.terminate();
-
-      loadingText.textContent = "Extraction…" ;
-
-      // Ingrédients
-      const parsed = extractIngredients(text);
-      renderIngredients(parsed);
-
-      // Produit (type/nom/sous-type)
-      const lines = splitLines(text);
-      autoDetectProduct(lines);
-
-      loading.style.display = 'none';
-      resultsSection.style.display = 'block';
-      updateJsonOutput(parsed);
-    } catch(err){
-      loading.style.display = 'none';
-      alert("Échec de l'OCR. Essayez une photo plus nette, bien éclairée.");
-      console.error(err);
-    }
-  });
-
-  // Extraction ingrédients
-  function extractIngredients(rawText){
-    if(!rawText) return [];
-    let text = normalizeWhitespace(rawText);
-    const markers = ["ingrédients","ingredients","composition","ingrédiens"];
-    let startIdx = -1;
-    for(const m of markers){
-      const idx = text.toLowerCase().indexOf(m);
-      if(idx !== -1){ startIdx = idx; break; }
-    }
-    if(startIdx === -1){ return cleanAndSplit(text); }
-    let candidate = text.slice(startIdx);
-    const stops = ["valeurs nutritionnelles","nutriments","peut contenir","traces de","conserver","allergènes","allergenes"];
-    for(const stop of stops){
-      const si = candidate.toLowerCase().indexOf(stop);
-      if(si !== -1) candidate = candidate.slice(0, si);
-    }
-    candidate = candidate.replace(/^.*?:/i, "");
-    return cleanAndSplit(candidate);
+    for(let i=0;i<d.length;i+=4){ const v = d[i] > th ? 255 : 0; d[i]=d[i+1]=d[i+2]=v; }
   }
-  function cleanAndSplit(segment){
-    let s = segment
-      .replace(/\r/g," ")
-      .replace(/\n/g," ")
-      .replace(/\s+/g," ")
-      .replace(/\s*[•·\*]\s*/g, ", ")
-      .replace(/\s*;\s*/g, ", ")
-      .replace(/\s*\.\s*/g, ", ");
-    s = s.replace(/[()]/g, ",");
-    let parts = s.split(/\s*,\s*/);
-    parts = parts
-      .map(p => p.trim())
-      .filter(p => p.length>0 && p.length<80)
-      .map(p => {
-        let t = p.toLowerCase();
-        t = t.replace(/\b\d+([.,]\d+)?\s*%/g,"")
-             .replace(/\b\d+([.,]\d+)?\s*(g|mg|ml)\b/g,"")
-             .replace(/\s{2,}/g," ").trim();
-        t = t.replace(/^(ingrédients?|composition)\s*:?\s*/,"");
-        return t;
-      });
-    const seen = new Set(), cleaned=[];
-    for(const p of parts){
-      const key = p.normalize('NFKC');
-      if(!seen.has(key) && !/^[\W_]+$/.test(key)){ seen.add(key); cleaned.push(p); }
-    }
-    return cleaned;
-  }
-  function splitLines(text){
-    return (text||"")
-      .split(/\r?\n/)
-      .map(l=>l.trim())
-      .filter(l=>l.length>0);
-  }
-  function normalizeWhitespace(s){ return (s||"").replace(/\r?\n/g," ").replace(/\s{2,}/g," ").trim(); }
-
-  // Heuristiques nom/type/sous-type
-  function autoDetectProduct(lines){
-    const joined = lines.join(" \n ");
-    // Type
-    const typeScore = { biere:0, vin:0, champagne:0 };
-    for(const [type, regs] of Object.entries(KEYS_PRODUCT)){
-      regs.forEach(r => { if(r.test(joined)) typeScore[type]++; });
-    }
-    const bestType = Object.keys(typeScore).reduce((a,b)=> typeScore[a]>=typeScore[b]?a:b);
-    if(typeScore[bestType] > 0 && !productType.value) productType.value = bestType;
-
-    // Sous-type
-    let sub = "";
-    const selected = productType.value || bestType;
-    if(selected && KEYS_SUBTYPE[selected]){
-      for(const [label, rx] of KEYS_SUBTYPE[selected]){
-        if(rx.test(joined)){ sub = label; break; }
+  if(sh){
+    const copy = new Uint8ClampedArray(d);
+    const w = canvas.width, h = canvas.height;
+    const idx = (x,y)=>4*(y*w+x);
+    const k = [-1,-1,-1,-1,9,-1,-1,-1,-1];
+    for(let y=1;y<h-1;y++){
+      for(let x=1;x<w-1;x++){
+        let acc=0, ki=0;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          acc += copy[idx(x+dx,y+dy)]*k[ki++];
+        }
+        const i = idx(x,y);
+        const v = Math.max(0,Math.min(255,acc));
+        d[i]=d[i+1]=d[i+2]=v;
       }
     }
-    if(sub && !productSubType.value) productSubType.value = capitalize(sub);
+  }
+  ctx.putImageData(imgData,0,0);
+}
 
-    // Nom / marque : heuristique
-    // - Cherche une ligne en haut du texte, assez longue, avec majuscules/accents, sans mots-clés génériques
-    const blacklist = ["ingredients","ingrédients","composition","valeurs","nutritionnelles","alcool","degré","volume","mise en bouteille","mis en bouteille"];
-    let candidate = "";
-    for(let i=0;i<Math.min(12, lines.length);i++){
-      const L = lines[i];
-      const low = L.toLowerCase();
-      if(blacklist.some(b=>low.includes(b))) continue;
-      if(L.length >= 5 && /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(L)){
-        // Préfère Majuscules/Titre
-        const score = (L === L.toUpperCase() ? 2 : 0) + (/\b[A-Z][a-z]/.test(L) ? 1 : 0) + Math.min(L.length, 40)/40;
-        if(score > (candidate.score||0)){ candidate = { text: L.replace(/[\.:]+$/,"").trim(), score }; }
-      }
+$('#run').onclick = async()=>{
+  const ok = await drawToCanvas(); if(!ok) return alert('Chargez une image ou utilisez la caméra.');
+  preprocess({bw: $('#bw').checked, sh: $('#sh').checked, deskew: $('#deskew').checked});
+  const dataUrl = canvas.toDataURL('image/png');
+  const worker = await Tesseract.createWorker("fra", 1, { logger: m => {} });
+  const { data:{ text } } = await worker.recognize(dataUrl);
+  await worker.terminate();
+  raw.textContent = text;
+  handleText(text);
+};
+
+// ===== Barcode (ZXing) + OFF =====
+let codeReader = null;
+$('#start-scan').onclick = async()=>{
+  try{
+    const { BrowserMultiFormatReader } = ZXingBrowser;
+    if(!codeReader) codeReader = new BrowserMultiFormatReader();
+    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    const back = devices.find(d=>/back|rear|environment/i.test(d.label))?.deviceId || devices[0]?.deviceId;
+    await codeReader.decodeFromVideoDevice(back, $('#bvideo'), (res)=>{ if(res){ $('#bvideo').style.border='2px solid #3cb371'; fetchOFF(res.getText()); }});
+  }catch(e){ alert('Scanner indisponible'); }
+};
+$('#stop-scan').onclick = ()=>{ if(codeReader){ codeReader.reset(); } };
+$('#lookup').onclick = ()=>{ const code=$('#barcode-input').value.trim(); if(!/^\d{8,14}$/.test(code)) return alert('Code invalide'); fetchOFF(code); };
+
+async function fetchOFF(code){
+  try{
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+    const j = await r.json();
+    if(j && j.product){
+      const p = j.product;
+      const ing = p.ingredients_text_fr || p.ingredients_text || '';
+      handleText(ing || '');
+      $('#pname').value = p.product_name_fr || p.product_name || $('#pname').value;
+      const cats = (p.categories_tags || []).join(' ');
+      if(/beer|bi[eè]re/i.test(cats)) $('#ptype').value = 'biere';
+      else if(/champagne/i.test(cats)) $('#ptype').value = 'champagne';
+      else if(/vin|wine/i.test(cats)) $('#ptype').value = 'vin';
+      const txt = [p.labels_fr,p.labels_tags,p.brands,p.generic_name_fr,p.ingredients_text_fr].filter(Boolean).join(' ');
+      autoSubtypeFromText(txt);
+      updateCurrentPayload(); // prepare payload after OFF
+    }else{ alert('Produit introuvable'); }
+  }catch(e){ alert('Erreur OFF'); console.error(e); }
+}
+
+// ===== Manuel =====
+$('#parse-manual').onclick = ()=>{ handleText($('#manual-text').value); };
+
+// ===== Parsing commun =====
+function handleText(text){
+  const ings = extractIngredients(text);
+  renderIngredients(ings);
+  autoDetectProduct(splitLines(text));
+  updateCurrentPayload();
+}
+
+function splitLines(text){ return (text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean); }
+
+function extractIngredients(rawText){
+  if(!rawText) return [];
+  let text = normWS(rawText);
+  const mks = ["ingrédients","ingredients","composition","ingrédiens"];
+  let start = -1;
+  for(const m of mks){ const i = text.toLowerCase().indexOf(m); if(i!==-1){ start=i; break; } }
+  if(start !== -1){ text = text.slice(start).replace(/^.*?:/i,''); }
+  const stops = ["valeurs nutritionnelles","nutritionnelles","peut contenir","traces de","conserver","allergenes","allergènes"];
+  for(const s of stops){ const i = text.toLowerCase().indexOf(s); if(i!==-1) text = text.slice(0,i); }
+  let s = text.replace(/\r/g," ").replace(/\n/g," ").replace(/\s+/g," ").replace(/\s*[•·\*]\s*/g,", ").replace(/\s*;\s*/g,", ").replace(/\s*\.\s*/g,", ");
+  s = s.replace(/[()]/g, ",");
+  let parts = s.split(/\s*,\s*/).map(p=>p.trim().toLowerCase())
+      .filter(p=>p && p.length<80)
+      .map(t=> t.replace(/\b\d+([.,]\d+)?\s*%/g,"").replace(/\b\d+([.,]\d+)?\s*(g|mg|ml)\b/g,"").trim())
+      .map(t=> t.replace(/^(ingrédients?|composition)\s*:?\s*/,""));
+  const seen = new Set(), out=[];
+  for(const p of parts){ const k=p.normalize('NFKC'); if(!seen.has(k) && !/^[\W_]+$/.test(k)){ seen.add(k); out.push(p);} }
+  return out;
+}
+
+function renderIngredients(items){
+  const ul = $('#list'); ul.innerHTML='';
+  if(items.length===0){ ul.innerHTML='<li class="row">Aucun ingrédient détecté.</li>'; return; }
+  for(const name of items){
+    const li = document.createElement('li'); li.className='row';
+    const pill = document.createElement('span'); pill.className='pill';
+    const allergen = ALLERGENES.find(a=>name.includes(a));
+    const maybe = /traces de/.test(name);
+    if(allergen){ pill.classList.add('pill-danger'); pill.textContent='Allergène'; }
+    else if(maybe){ pill.classList.add('pill-warn'); pill.textContent='Traces possibles'; }
+    else pill.textContent='Ingrédient';
+    const span = document.createElement('span'); span.textContent = capitalize(name);
+    li.appendChild(pill); li.appendChild(span);
+    ul.appendChild(li);
+  }
+}
+
+function autoDetectProduct(lines){
+  const text = lines.join(' \n ');
+  const score = {biere:0,vin:0,champagne:0};
+  for(const [type, regs] of Object.entries(KEYS_PRODUCT)){ regs.forEach(r=>{ if(r.test(text)) score[type]++; }); }
+  const best = Object.keys(score).reduce((a,b)=> score[a]>=score[b]?a:b);
+  if(score[best]>0 && !$('#ptype').value) $('#ptype').value = best;
+  const selected = $('#ptype').value || best;
+  if(selected && KEYS_SUBTYPE[selected]){
+    for(const [label, rx] of KEYS_SUBTYPE[selected]){ if(rx.test(text) && !$('#psub').value){ $('#psub').value = capitalize(label); break; } }
+  }
+  const blacklist = ["ingredients","ingrédients","composition","valeurs","nutritionnelles","alcool","degré","volume","mise en bouteille","mis en bouteille"];
+  let bestLine = {score:0,text:""};
+  for(let i=0;i<Math.min(12, lines.length);i++){
+    const L = lines[i], low=L.toLowerCase();
+    if(blacklist.some(b=>low.includes(b))) continue;
+    if(L.length>=5 && /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(L)){
+      const sc = (L===L.toUpperCase()?2:0) + (/\b[A-Z][a-z]/.test(L)?1:0) + Math.min(L.length,40)/40;
+      if(sc>bestLine.score){ bestLine={score:sc,text:L.replace(/[\.:]+$/,'').trim()}; }
     }
-    if(candidate.text && !productName.value){ productName.value = candidate.text; }
   }
+  if(bestLine.text && !$('#pname').value) $('#pname').value = bestLine.text;
+}
 
-  function renderIngredients(items){
-    ingredientsList.innerHTML = "";
-    if(items.length === 0){
-      ingredientsList.innerHTML = "<li class='ingredient-item'>Aucun ingrédient détecté.</li>";
-      return;
-    }
-    items.forEach(name => {
-      const li = document.createElement('li');
-      li.className = 'ingredient-item';
-      const allergen = ALLERGENES.find(a => name.includes(a));
-      const maybeContains = /traces de/.test(name) ? "traces" : null;
-      const pill = document.createElement('span');
-      pill.className = 'pill';
-      if(allergen){ pill.classList.add('pill-allergen'); pill.textContent = "Allergène"; }
-      else if(maybeContains){ pill.classList.add('pill-maybe'); pill.textContent = "Traces possibles"; }
-      else { pill.textContent = "Ingrédient"; }
-      const span = document.createElement('span');
-      span.textContent = capitalize(name);
-      li.appendChild(pill);
-      li.appendChild(span);
-      ingredientsList.appendChild(li);
-    });
+function autoSubtypeFromText(text){
+  const joined = String(text||"");
+  const type = $('#ptype').value;
+  const selected = type || 'biere';
+  const map = KEYS_SUBTYPE[type] || [];
+  for(const [label, rx] of map){ if(rx.test(joined)){ $('#psub').value = capitalize(label); break; } }
+}
+
+// ===== Current payload & single-product export =====
+function collectIngredients(){ return [...$$('#list .row span:last-child')].map(x=>x.textContent); }
+function currentProduct(){
+  return {
+    product: { type: $('#ptype').value || null, name: $('#pname').value || null, subtype: $('#psub').value || null },
+    ingredients: collectIngredients(),
+    ts: Date.now()
+  };
+}
+function updateCurrentPayload(){ window.__current = currentProduct(); }
+
+$('#copy').onclick = async()=>{ try{ await navigator.clipboard.writeText(collectIngredients().join(', ')); }catch(e){ alert('Copie impossible'); } };
+$('#csv').onclick = ()=>{ const rows=[["ingredient","type"]]; $$('#list .row').forEach(li=>{ const name=li.querySelector('span:last-child')?.textContent||""; const type=li.querySelector('.pill')?.textContent||"Ingrédient"; rows.push([name,type]); }); const csv = rows.map(r=>r.map(escapeCsv).join(",")).join("\n"); const blob = new Blob([csv], {type:"text/csv"}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='ingredients.csv'; a.click(); URL.revokeObjectURL(url); };
+$('#export-json').onclick = ()=>{ const payload=currentProduct(); const pretty=JSON.stringify(payload,null,2); const blob=new Blob([pretty],{type:"application/json"}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='scan.json'; a.click(); URL.revokeObjectURL(url); };
+
+// ===== Historique (localStorage) =====
+const KEY = 'labels_history_v1';
+function loadHistory(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch{ return []; } }
+function saveHistory(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); }
+function addToHistory(entry){
+  const hist = loadHistory();
+  hist.push(entry);
+  saveHistory(hist);
+  renderHistory();
+  alert('Enregistré dans l’historique.');
+}
+function deleteFromHistory(idx){
+  const hist = loadHistory();
+  hist.splice(idx,1);
+  saveHistory(hist);
+  renderHistory();
+}
+function clearHistory(){
+  if(!confirm('Supprimer tout l’historique ?')) return;
+  localStorage.removeItem(KEY);
+  renderHistory();
+}
+function renderHistory(){
+  const tbody = $('#history-table tbody');
+  const hist = loadHistory();
+  tbody.innerHTML = '';
+  if(hist.length===0){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="6" style="text-align:center;color:#666">Aucun enregistrement.</td>';
+    tbody.appendChild(tr);
+    return;
   }
-
-  function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
-
-  // Export
-  function collectIngredients(){
-    return [...ingredientsList.querySelectorAll('.ingredient-item span:last-child')].map(s=>s.textContent);
-  }
-  document.getElementById('reset-btn').addEventListener('click', () => {
-    fileInput.value = '';
-    imagePreview.src = '';
-    imagePreview.style.display = 'none';
-    currentImageBlobUrl && URL.revokeObjectURL(currentImageBlobUrl);
-    currentImageBlobUrl = "";
-    previewSection.style.display = 'none';
-    resultsSection.style.display = 'none';
-    loading.style.display = 'none';
-    stopCamera();
-    productType.value = "";
-    productName.value = "";
-    productSubType.value = "";
-    jsonOutput.value = "";
+  hist.forEach((p, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fmtDate(p.ts || Date.now())}</td>
+      <td>${escapeHtml(p.product?.name||'')}</td>
+      <td>${escapeHtml(p.product?.type||'')}</td>
+      <td>${escapeHtml(p.product?.subtype||'')}</td>
+      <td>${(p.ingredients||[]).length}</td>
+      <td><button class="btn btn-o" data-del="${idx}">Supprimer</button></td>
+    `;
+    tbody.appendChild(tr);
   });
-  document.getElementById('copy-btn').addEventListener('click', async () => {
-    const items = collectIngredients();
-    if(items.length===0){ return; }
-    try{
-      await navigator.clipboard.writeText(items.join(', '));
-      document.getElementById('copy-btn').textContent = "Copié !";
-      setTimeout(()=>document.getElementById('copy-btn').textContent="Copier la liste",1000);
-    }catch(e){ alert("Impossible de copier."); }
-  });
-  document.getElementById('csv-btn').addEventListener('click', () => {
-    const rows = [["ingredient","type"]];
-    const lis = [...ingredientsList.querySelectorAll('.ingredient-item')];
-    lis.forEach(li=>{
-      const name = li.querySelector('span:last-child')?.textContent || "";
-      const type = li.querySelector('.pill')?.textContent || "Ingrédient";
-      rows.push([name,type]);
-    });
-    const csv = rows.map(r=>r.map(escapeCsv).join(",")).join("\n");
-    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = "ingredients.csv"; a.click();
-    URL.revokeObjectURL(url);
-  });
-  exportBtn.addEventListener('click', () => {
-    const payload = {
-      product: {
-        type: productType.value || null,
-        name: productName.value || null,
-        subtype: productSubType.value || null
-      },
-      ingredients: collectIngredients()
-    };
-    const pretty = JSON.stringify(payload, null, 2);
-    jsonOutput.value = pretty;
-    const blob = new Blob([pretty], {type:"application/json;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = "scan.json"; a.click();
-    URL.revokeObjectURL(url);
-  });
+  $$('#history-table [data-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteFromHistory(parseInt(btn.getAttribute('data-del')))));
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
-  function escapeCsv(s){ if(/[,\"\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`; return s; }
+$('#save').onclick = ()=>{ const payload = currentProduct(); if(!payload.product.name && payload.ingredients.length===0){ return alert('Aucun contenu à enregistrer.'); } addToHistory(payload); };
 
-})();
+// Export ALL
+$('#export-all-csv').onclick = ()=>{
+  const hist = loadHistory();
+  const rows = [["date","nom","categorie","sous_type","ingredients"]];
+  hist.forEach(p=>{
+    rows.push([fmtDate(p.ts||Date.now()), p.product?.name||"", p.product?.type||"", p.product?.subtype||"", (p.ingredients||[]).join(" | ")]);
+  });
+  const csv = rows.map(r=>r.map(escapeCsv).join(",")).join("\n");
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.csv'; a.click(); URL.revokeObjectURL(url);
+};
+$('#export-all-json').onclick = ()=>{
+  const hist = loadHistory();
+  const pretty = JSON.stringify(hist, null, 2);
+  const blob = new Blob([pretty], {type:"application/json"});
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='historique_produits.json'; a.click(); URL.revokeObjectURL(url);
+};
+$('#clear-history').onclick = clearHistory;
+
+// ===== PWA SW =====
+if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('./service-worker.js')); }
+
 </script>
 </body>
 </html>
