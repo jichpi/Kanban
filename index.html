@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Étiquettes Boissons — OFF d'abord (v4)</title>
+  <title>Étiquettes Boissons — OFF d'abord (v5)</title>
   <meta name="theme-color" content="#4b6cb7"/>
   <link rel="manifest" href="manifest.webmanifest">
   <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
     body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
-    .container{background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);width:100%;max-width:1200px;overflow:hidden}
+    .container{background:#fff;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);width:100%;max-width:1220px;overflow:hidden}
     header{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff;padding:22px;text-align:center}
     h1{font-size:1.9rem;margin-bottom:6px}
     .subtitle{opacity:.9}
@@ -22,7 +22,7 @@
     .card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px;margin-bottom:12px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     .image{width:100%;max-height:380px;object-fit:contain;border-radius:10px;border:1px solid #eee}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
     .btn{border:none;border-radius:999px;padding:10px 16px;font-weight:600;cursor:pointer}
     .btn-p{background:linear-gradient(90deg,#4b6cb7 0%,#182848 100%);color:#fff}
     .btn-o{background:#fff;border:2px solid #4b6cb7;color:#4b6cb7}
@@ -41,7 +41,10 @@
     th{background:#f6f7ff}
     .right{justify-content:flex-end}
     @media(max-width:1000px){.grid{grid-template-columns:1fr}}
-    .toggle{display:inline-flex;align-items:center;gap:8px}
+    .status{padding:8px 10px;border-radius:10px;background:#f8f9ff;border:1px solid #e6e8ff;color:#263238;font-size:.92rem}
+    .ok{border-color:#bee5cb;background:#effaf3}
+    .warn{border-color:#ffe08a;background:#fff8e1}
+    .err{border-color:#ffb3b3;background:#fff0f0}
   </style>
   <!-- OCR + Barcode libs -->
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
@@ -51,7 +54,7 @@
 <div class="container">
   <header>
     <h1>Étiquettes Boissons</h1>
-    <p class="subtitle">Priorité à OpenFoodFacts (code-barres ou recherche nom) puis vérif manuelle/OCR (v4)</p>
+    <p class="subtitle">OFF d’abord (code-barres/nom) → Vérif OCR/Manuel • Historique • Catégories personnalisées (v5)</p>
   </header>
 
   <div class="main">
@@ -64,26 +67,27 @@
 
     <!-- OFF Panel -->
     <div class="panel active" id="panel-barcode">
-      <div class="grid">
-        <div class="card">
-          <h3>Scanner code-barres</h3>
-          <video id="bvideo" class="image"></video>
-          <div class="controls">
-            <button class="btn btn-p" id="start-scan">Démarrer</button>
-            <button class="btn btn-o" id="stop-scan">Arrêter</button>
-          </div>
-          <div class="small">EAN-13 / UPC-A (caméra arrière recommandée).</div>
+      <div class="card">
+        <h3>Scanner code-barres</h3>
+        <div class="controls">
+          <select id="camera-select"><option value="">Sélection de caméra…</option></select>
+          <button class="btn btn-p" id="start-scan">Démarrer</button>
+          <button class="btn btn-o" id="stop-scan">Arrêter</button>
         </div>
-        <div class="card">
-          <h3>Recherche par code ou par nom</h3>
-          <input type="text" id="search-input" placeholder="ex: 3274080005003 ou 'Chimay Bleue'"/>
-          <div class="controls">
-            <button class="btn btn-p" id="search-btn">Chercher sur OFF</button>
-            <button class="btn btn-o" id="use-ocr-image">Lire code-barres sur l'image</button>
-          </div>
-          <div class="small">Si vous avez déjà une photo, “Lire code-barres sur l'image” tentera d’extraire l’EAN à partir de l’onglet OCR &gt; Image.</div>
-        </div>
+        <div id="cam-status" class="status warn">Caméra : en attente d’autorisation…</div>
+        <video id="bvideo" class="image" playsinline></video>
+        <div class="small">PC/Mac : choisissez la webcam. Smartphone : préférez la caméra arrière.</div>
       </div>
+      <div class="card">
+        <h3>Recherche par code ou par nom</h3>
+        <input type="text" id="search-input" placeholder="ex: 3274080005003 ou 'Chimay Bleue'"/>
+        <div class="controls">
+          <button class="btn btn-p" id="search-btn">Chercher sur OFF</button>
+          <button class="btn btn-o" id="use-ocr-image">Lire code-barres sur l'image</button>
+        </div>
+        <div class="small">Si vous avez déjà une photo (onglet OCR), on tentera d’y lire l’EAN.</div>
+      </div>
+      <div id="off-status" class="status" style="display:none"></div>
     </div>
 
     <!-- OCR Panel -->
@@ -101,7 +105,6 @@
             <button class="btn btn-o" id="reset">Réinitialiser</button>
           </div>
         </div>
-
         <div class="card">
           <h3>Pré-traitement & OCR</h3>
           <div class="controls">
@@ -141,12 +144,10 @@
       <div class="card">
         <h3>Produit</h3>
         <label>Catégorie</label>
-        <select id="ptype">
-          <option value="">-- auto --</option>
-          <option value="biere">Bière</option>
-          <option value="vin">Vin</option>
-          <option value="champagne">Champagne</option>
-        </select>
+        <div class="controls">
+          <select id="ptype"></select>
+          <button class="btn btn-o" id="add-type">+ Ajouter une catégorie</button>
+        </div>
         <label style="margin-top:8px">Nom / Marque</label>
         <input type="text" id="pname" placeholder="ex: Chimay Grande Réserve"/>
         <label style="margin-top:8px">Sous-type</label>
@@ -179,7 +180,7 @@
     </div>
 
   </div>
-  <footer>Installable (PWA). OFF d’abord, OCR ensuite pour corriger/compléter.</footer>
+  <footer>Installable (PWA). OFF d’abord, OCR ensuite. Catégories personnalisables. Historique exportable.</footer>
 </div>
 
 <script>
@@ -191,6 +192,40 @@ function escapeCsv(s){ return /[,"\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s
 function fmtDate(ts){ const d=new Date(ts); return d.toLocaleString(); }
 
 const ALLERGENES = ["gluten","lait","lactose","œuf","oeuf","arachide","soja","noisette","amande","noix","noix de cajou","pistache","noix de pécan","sulfites","crustacé","crustacés","moutarde","céleri","graines de sésame","sésame","lupin","poisson","mollusque","mollusques"];
+
+// Base + catégories personnalisées
+const BASE_TYPES = ["", "biere", "vin", "champagne"]; // "" = -- auto --
+function loadCustomTypes(){ try{ return JSON.parse(localStorage.getItem('custom_types')||'[]'); }catch{ return []; } }
+function saveCustomTypes(arr){ localStorage.setItem('custom_types', JSON.stringify(arr)); }
+function refreshTypeOptions(){
+  const sel = $('#ptype');
+  const customs = loadCustomTypes();
+  const all = [...BASE_TYPES, ...customs];
+  sel.innerHTML = '';
+  all.forEach(t=>{
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t ? t.charAt(0).toUpperCase()+t.slice(1) : '-- auto --';
+    sel.appendChild(opt);
+  });
+}
+refreshTypeOptions();
+$('#add-type').onclick = ()=>{
+  const name = prompt("Nom de la nouvelle catégorie (ex: cidre, whisky, soda) :");
+  if(!name) return;
+  const key = name.trim().toLowerCase().replace(/\s+/g,'_');
+  if(!key) return;
+  const customs = loadCustomTypes();
+  if(!customs.includes(key) && !BASE_TYPES.includes(key)){
+    customs.push(key); saveCustomTypes(customs); refreshTypeOptions();
+    $('#ptype').value = key;
+    alert(`Catégorie "${name}" ajoutée.`);
+  } else {
+    alert('Cette catégorie existe déjà.');
+  }
+};
+
+// Heuristiques par défaut (biere/vin/champagne). Pour une catégorie ajoutée, l’utilisateur renseigne manuellement le sous-type.
 const KEYS_PRODUCT = {
   biere: [/bi[eè]re\b/i, /\bbeer\b/i, /\bipa\b/i, /\bstout\b/i, /\bblonde\b/i, /\bbrune\b/i, /\btriple\b/i, /\blager\b/i, /\bpils?\b/i],
   vin: [/\bvin\b/i, /\bappellation\b/i, /\b(aoc|aop|igp)\b/i, /\bch[âa]teau\b/i, /\bc[ée]pages?\b/i],
@@ -212,64 +247,112 @@ $$('.tab').forEach(t=>t.addEventListener('click', ()=>{
   if(id==='historique') renderHistory();
 }));
 
-// ===== OFF: code-barres + recherche nom =====
+// ===== OFF: device picker + auto-scan =====
+function logStatus(el, msg, type){ el.textContent=msg; el.style.display='block'; el.className='status ' + (type||''); }
+
 let codeReader = null;
-$('#start-scan').onclick = async()=>{
+let scanning = false;
+let selectedDeviceId = null;
+
+async function listCameras(){
   try{
-    const { BrowserMultiFormatReader } = ZXingBrowser;
-    if(!codeReader) codeReader = new BrowserMultiFormatReader();
     const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const back = devices.find(d=>/back|rear|environment/i.test(d.label))?.deviceId || devices[0]?.deviceId;
-    await codeReader.decodeFromVideoDevice(back, $('#bvideo'), (res)=>{
-      if(res){ $('#bvideo').style.border='2px solid #3cb371'; fetchOFFByCode(res.getText()); }
+    const sel = $('#camera-select'); sel.innerHTML='';
+    if(!devices.length){ sel.innerHTML='<option value="">Aucune caméra</option>'; return; }
+    const sorted = devices.sort((a,b)=>{
+      const ra = /back|rear|environment/i.test(a.label)?-1:0;
+      const rb = /back|rear|environment/i.test(b.label)?-1:0;
+      return ra - rb;
     });
-  }catch(e){ alert('Scanner indisponible'); console.error(e); }
-};
-$('#stop-scan').onclick = ()=>{ if(codeReader){ codeReader.reset(); } };
+    sorted.forEach(d=>{
+      const opt = document.createElement('option');
+      opt.value = d.deviceId; opt.textContent = d.label || ('Caméra ' + d.deviceId.slice(-4));
+      sel.appendChild(opt);
+    });
+    selectedDeviceId = sorted[0].deviceId;
+    sel.value = selectedDeviceId;
+  }catch(e){
+    $('#camera-select').innerHTML='<option value="">(Caméras indisponibles)</option>';
+  }
+}
 
-$('#search-btn').onclick = ()=>{
-  const q = $('#search-input').value.trim();
-  if(!q) return;
-  if(/^\d{8,14}$/.test(q)) fetchOFFByCode(q);
-  else fetchOFFByName(q);
-};
+$('#camera-select').addEventListener('change', (e)=>{ selectedDeviceId = e.target.value; if(scanning){ startScan(); } });
 
-// Lire code-barres sur l'image déjà importée en OCR
+async function startScan(){
+  const status = $('#cam-status');
+  if(!ZXingBrowser || !ZXingBrowser.BrowserMultiFormatReader){ logStatus(status, 'Lib du scanner introuvable (réseau ?)', 'err'); return; }
+  if(!selectedDeviceId){ await listCameras(); }
+  try{
+    if(!codeReader) codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+    scanning = true;
+    logStatus(status, 'Scanner en cours… Présentez un code EAN/UPC.', 'ok');
+    await codeReader.decodeFromVideoDevice(selectedDeviceId, $('#bvideo'), (res)=>{
+      if(res){
+        $('#bvideo').style.border='2px solid #3cb371';
+        const code = res.getText();
+        fetchOFFByCode(code, /*autoFallback*/ true);
+        stopScan();
+      }
+    });
+  }catch(e){
+    logStatus(status, 'Échec caméra (permissions/HTTPS ?)', 'err'); console.error(e);
+  }
+}
+function stopScan(){ if(codeReader){ codeReader.reset(); } scanning=false; logStatus($('#cam-status'), 'Scanner arrêté.', 'warn'); }
+$('#start-scan').onclick = async()=>{ await listCameras(); startScan(); };
+$('#stop-scan').onclick = ()=> stopScan();
+
+// lecture code-barres sur image déjà importée en OCR
 $('#use-ocr-image').onclick = async()=>{
   const img = document.getElementById('img');
-  if(!img || !img.src) return alert("Chargez d'abord une image dans l'onglet OCR.");
+  if(!img || !img.src) return alert("Chargez d'abord une image dans l’onglet OCR.");
   try{
     const res = await ZXingBrowser.BrowserBarcodeReader.decodeFromImage(null, img);
-    if(res && res.getText){ fetchOFFByCode(res.getText()); }
+    if(res && res.getText){ fetchOFFByCode(res.getText(), true); }
     else alert('Aucun code-barres détecté sur l’image.');
   }catch(e){ alert('Échec de lecture du code-barres sur image.'); console.error(e); }
 };
 
-async function fetchOFFByCode(code){
+// recherche manuelle (code ou nom)
+$('#search-btn').onclick = ()=>{
+  const q = $('#search-input').value.trim();
+  if(!q) return;
+  if(/^\d{8,14}$/.test(q)) fetchOFFByCode(q, true);
+  else fetchOFFByName(q, true);
+};
+
+function suggestOCR(){
+  $$('.tab').forEach(x=>x.classList.remove('active')); $$('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-tab="ocr"]').classList.add('active');
+  $('#panel-ocr').classList.add('active');
+  alert('OFF n’a pas trouvé le produit. Passe à l’onglet OCR pour lire l’étiquette ou corriger manuellement.');
+}
+
+async function fetchOFFByCode(code, autoFallback){
+  const status = $('#off-status');
   try{
+    logStatus(status, `Recherche OFF pour le code ${code}…`, 'warn');
     const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
     const j = await r.json();
-    if(j && j.product){
-      fillFromOFF(j.product);
-    }else{
-      alert('Produit introuvable via ce code.');
-    }
-  }catch(e){ alert('Erreur OFF'); console.error(e); }
+    if(j && j.product){ fillFromOFF(j.product); logStatus(status, 'Produit trouvé via OFF ✔', 'ok'); }
+    else { logStatus(status, 'Produit introuvable pour ce code.', 'err'); if(autoFallback) suggestOCR(); }
+  }catch(e){
+    logStatus(status, 'Erreur réseau OFF.', 'err'); if(autoFallback) suggestOCR();
+  }
 }
-async function fetchOFFByName(name){
+async function fetchOFFByName(name, autoFallback){
+  const status = $('#off-status');
   try{
-    // Recherche simple OFF
+    logStatus(status, `Recherche OFF: "${name}"…`, 'warn');
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(name)}&search_simple=1&json=1&page_size=1`;
     const r = await fetch(url);
     const j = await r.json();
-    if(j && j.products && j.products.length){
-      fillFromOFF(j.products[0]);
-    }else{
-      alert('Aucun produit trouvé pour ce nom.');
-    }
-  }catch(e){ alert('Erreur OFF'); console.error(e); }
+    if(j && j.products && j.products.length){ fillFromOFF(j.products[0]); logStatus(status, 'Produit trouvé via OFF ✔', 'ok'); }
+    else { logStatus(status, 'Aucun produit trouvé pour ce nom.', 'err'); if(autoFallback) suggestOCR(); }
+  }catch(e){
+    logStatus(status, 'Erreur réseau OFF.', 'err'); if(autoFallback) suggestOCR();
+  }
 }
-
 function fillFromOFF(p){
   const ing = p.ingredients_text_fr || p.ingredients_text || '';
   handleText(ing || '');
@@ -278,17 +361,17 @@ function fillFromOFF(p){
   if(/beer|bi[eè]re/i.test(cats)) $('#ptype').value = 'biere';
   else if(/champagne/i.test(cats)) $('#ptype').value = 'champagne';
   else if(/vin|wine/i.test(cats)) $('#ptype').value = 'vin';
+  // Pour les autres catégories (cidre, whisky, etc.), laisse l’utilisateur choisir/ajouter via "Ajouter une catégorie".
   const txt = [p.labels_fr,p.labels_tags,p.brands,p.generic_name_fr,p.ingredients_text_fr].filter(Boolean).join(' ');
   autoSubtypeFromText(txt);
   updateCurrentPayload();
-  alert('Données OpenFoodFacts chargées. Vérifiez et corrigez si besoin.');
 }
 
 // ===== OCR (pour vérif/complément) =====
 let stream = null;
 let cropRect = null;
 const imgEl = $('#img'), vid = $('#vid'), canvas = $('#canvas'), raw = $('#raw');
-const ctx = canvas.getContext('2d');
+const ctx2 = canvas.getContext('2d');
 
 $('#pick').onclick = ()=> $('#file').click();
 $('#file').onchange = (e)=>{
@@ -348,7 +431,6 @@ function preprocess({bw, sh}){
     d[i]=d[i+1]=d[i+2]=y;
   }
   if(bw){
-    // simple Otsu-like threshold
     let hist = new Array(256).fill(0);
     for(let i=0;i<d.length;i+=4) hist[d[i]|0]++;
     let sum=0; for(let t=0;t<256;t++) sum+=t*hist[t];
@@ -440,6 +522,7 @@ function renderIngredients(items){
 
 function autoDetectProduct(lines){
   const text = lines.join(' \n ');
+  // essaie d'abord nos catégories connues
   const score = {biere:0,vin:0,champagne:0};
   for(const [type, regs] of Object.entries(KEYS_PRODUCT)){ regs.forEach(r=>{ if(r.test(text)) score[type]++; }); }
   const best = Object.keys(score).reduce((a,b)=> score[a]>=score[b]?a:b);
@@ -448,6 +531,7 @@ function autoDetectProduct(lines){
   if(selected && KEYS_SUBTYPE[selected]){
     for(const [label, rx] of KEYS_SUBTYPE[selected]){ if(rx.test(text) && !$('#psub').value){ $('#psub').value = capitalize(label); break; } }
   }
+  // pour les catégories personnalisées, on ne tente pas d'inférer (l'utilisateur renseigne)
   const blacklist = ["ingredients","ingrédients","composition","valeurs","nutritionnelles","alcool","degré","volume","mise en bouteille","mis en bouteille"];
   let bestLine = {score:0,text:""};
   for(let i=0;i<Math.min(12, lines.length);i++){

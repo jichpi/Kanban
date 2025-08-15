@@ -1,4 +1,4 @@
-const CACHE='labels-pwa-v4';
+const CACHE='labels-pwa-v5';
 const ASSETS=[
   './','./index.html','./manifest.webmanifest','./service-worker.js',
   './icons/icon-192.png','./icons/icon-512.png',
